@@ -1,0 +1,8 @@
+{
+  "claim_id": "C-DEMO-001",
+  "policy_id": "P1001",
+  "loss_date": "2024-06-10",
+  "loss_type": "water",
+  "amount": 12500.00,
+  "description": "Water backup in basement after storm."
+}
