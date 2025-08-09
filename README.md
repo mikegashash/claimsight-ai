@@ -16,7 +16,6 @@
 
 > Privacy-first: synthetic sample data included; PII masking is built-in.
 
----
 
 ## Architecture
 
