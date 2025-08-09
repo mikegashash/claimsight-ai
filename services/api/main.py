@@ -1,7 +1,13 @@
-# services/api/main.py
-
 import sys, os as _os
-sys.path.append(_os.path.abspath("/app/services"))  # enable 'services.*' imports in-container
+from pathlib import Path
+
+# Add both the runtime services dir (Codespaces) and container dir (Docker) to sys.path
+_services_dir = str(Path(__file__).resolve().parents[1])  # .../services
+if _services_dir not in sys.path:
+    sys.path.insert(0, _services_dir)
+if "/app/services" not in sys.path:
+    sys.path.append("/app/services")
+
 
 from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi import File
