@@ -4,6 +4,11 @@ import os, json, math
 
 from rag.reranker import rerank
 
+import sys, os as _os
+sys.path.append(_os.path.abspath("/app/services"))
+
+from ocr.pii import mask_pii
+
 
 # --- RAG imports ---
 from rag.index_policies import build_index
