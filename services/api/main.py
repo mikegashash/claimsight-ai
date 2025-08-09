@@ -2,8 +2,6 @@ from fastapi import FastAPI, UploadFile
 from typing import List
 import os, json, math
 
-
-
 from rag.reranker import rerank
 
 from integrations.models import PolicyQuery, ClaimFNOL
