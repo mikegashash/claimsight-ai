@@ -16,6 +16,14 @@
 
 > Privacy-first: synthetic sample data included; PII masking is built-in.
 
+## Developer Experience (Makefile)
+
+make up       # build, seed data, start stack
+make test     # run pytest inside API container
+make train    # train toy XGBoost model via admin API
+make logs     # tail logs
+make down     # stop stack
+
 
 ## Architecture
 
@@ -71,10 +79,3 @@ flowchart LR
     API --> S1
 
 
-## Developer Experience (Makefile)
-
-make up       # build, seed data, start stack
-make test     # run pytest inside API container
-make train    # train toy XGBoost model via admin API
-make logs     # tail logs
-make down     # stop stack
