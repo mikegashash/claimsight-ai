@@ -1,0 +1,28 @@
+name: Bootstrap CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Make bootstrap executable
+        run: chmod +x bootstrap.sh
+
+      - name: Run bootstrap in CI mode
+        env:
+          # Prevent interactive installs
+          PIP_DISABLE_PIP_VERSION_CHECK: "1"
+        run: ./bootstrap.sh --ci
