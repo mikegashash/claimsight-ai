@@ -14,3 +14,4 @@ torch
 presidio-analyzer
 presidio-anonymizer
 spacy
+snowflake-connector-python
