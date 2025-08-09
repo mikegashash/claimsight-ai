@@ -78,7 +78,7 @@ flowchart LR
     API --> D5
     API --> S1
 ```
-### 🔌 Core System Integrations (stubs)
+###  Core System Integrations (stubs)
 
 | Endpoint                                                | Description                                 |
 |---------------------------------------------------------|---------------------------------------------|
