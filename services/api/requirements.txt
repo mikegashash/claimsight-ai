@@ -1,17 +1,33 @@
-fastapi
-uvicorn[standard]
-python-multipart
-pydantic
-pandas
-numpy
-chromadb
-sentence-transformers
-scikit-learn
-xgboost
-shap
-PyPDF2
-torch
-presidio-analyzer
-presidio-anonymizer
-spacy
-snowflake-connector-python
+# Core API framework
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+
+# Data & ML
+pandas==2.2.2
+numpy==1.26.4
+xgboost==2.1.0
+shap==0.45.1
+scikit-learn==1.5.1
+
+# RAG / NLP
+sentence-transformers==2.7.0
+transformers==4.41.2
+faiss-cpu==1.8.0
+rank-bm25==0.2.2
+
+# OCR / PII masking
+presidio-analyzer==2.2.354
+presidio-anonymizer==2.2.354
+pytesseract==0.3.10
+Pillow==10.3.0
+
+# Snowflake
+snowflake-connector-python==3.10.1
+snowflake-sqlalchemy==1.6.1
+SQLAlchemy==2.0.31
+
+# HTTP / API calls
+requests==2.32.3
+
+# Misc
+python-multipart==0.0.9
