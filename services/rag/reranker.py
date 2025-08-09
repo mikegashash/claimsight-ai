@@ -14,10 +14,14 @@ def _get():
 def rerank(query: str, passages: list, top_n: int = 5):
     if not passages:
         return []
-    model = _get()
-    pairs = [(query, p["text"]) for p in passages]
-    scores = model.predict(pairs).tolist()
-    for p, s in zip(passages, scores):
-        p["rerank_score"] = float(s)
-    passages.sort(key=lambda x: x.get("rerank_score", 0.0), reverse=True)
+    try:
+        model = _get()
+        pairs = [(query, p["text"]) for p in passages]
+        scores = model.predict(pairs).tolist()
+        for p, s in zip(passages, scores):
+            p["rerank_score"] = float(s)
+        passages.sort(key=lambda x: x.get("rerank_score", 0.0), reverse=True)
+    except Exception:
+        # graceful no-op fallback
+        passages.sort(key=lambda x: x.get("distance", 0.0), reverse=True)
     return passages[:top_n]
