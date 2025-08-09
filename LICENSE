@@ -1,0 +1,5 @@
+touch LICENSE
+# paste MIT License text
+git add LICENSE
+git commit -m "Add MIT license"
+git push
