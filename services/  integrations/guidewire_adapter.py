@@ -6,7 +6,6 @@ GW_BASE = os.getenv("GW_BASE_URL", "https://guidewire.example.com")
 GW_API_KEY = os.getenv("GW_API_KEY", "dev-key")
 
 def pc_get_policy(q: PolicyQuery) -> Dict[str, Any]:
-    # Stubbed response for demos/tests
     return {
         "policyId": q.policy_id,
         "effectiveDate": q.effective_date or "2024-01-01",
