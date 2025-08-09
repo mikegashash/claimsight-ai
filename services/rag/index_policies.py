@@ -1,4 +1,4 @@
-import os, glob, json, uuid, re
+import os, glob, json, re
 from typing import List, Dict
 import numpy as np
 import faiss
@@ -13,12 +13,11 @@ MODEL_NAME = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v
 
 def _chunk(text: str, max_chars=900, overlap=120) -> List[str]:
     out, i = [], 0
-    L = len(text)
-    while i < L:
+    while i < len(text):
         out.append(text[i:i+max_chars])
         nxt = i + max_chars - overlap
         if nxt <= i: break
-        i = min(nxt, L)
+        i = min(nxt, len(text))
     return out
 
 def _load_text(path: str) -> str:
@@ -37,21 +36,21 @@ def _load_text(path: str) -> str:
 def build_index() -> Dict[str, int]:
     os.makedirs(BASE, exist_ok=True)
     files = sorted(glob.glob(os.path.join(DATA_DIR, "*")))
+    docs, metas = [], []
+
     if not files:
-        # keep empty index but no crash
-        open(DOCS_PATH, "w").write("[]")
-        open(META_PATH, "w").write("[]")
+        # create an empty index that won't crash the app
         dim = 384  # all-MiniLM-L6-v2
         faiss.write_index(faiss.IndexFlatIP(dim), INDEX_PATH)
+        json.dump(docs, open(DOCS_PATH, "w"))
+        json.dump(metas, open(META_PATH, "w"))
         return {"files": 0, "docs": 0}
 
-    docs, metas = [], []
     for fp in files:
         policy_id = os.path.splitext(os.path.basename(fp))[0]
         text = _load_text(fp)
         if not text.strip():
             continue
-        # try to keep “Section X:” title as meta.section
         sections = re.split(r"\n(?=Section\s+\d+:)", text, flags=re.IGNORECASE)
         for s in (sections if len(sections) > 1 else [text]):
             section_title = (s.splitlines()[0].strip() if s.strip() else "unknown")[:120]
@@ -60,16 +59,14 @@ def build_index() -> Dict[str, int]:
                 metas.append({"policy_id": policy_id, "section": section_title})
 
     model = SentenceTransformer(MODEL_NAME)
-    vecs = model.encode(docs, normalize_embeddings=True)
-    vecs = np.asarray(vecs, dtype="float32")
+    vecs = model.encode(docs, normalize_embeddings=True).astype("float32")
 
     index = faiss.IndexFlatIP(vecs.shape[1])
-    index.add(vecs)
+    if len(vecs):
+        index.add(vecs)
 
     faiss.write_index(index, INDEX_PATH)
-    with open(DOCS_PATH, "w", encoding="utf-8") as f:
-        json.dump(docs, f)
-    with open(META_PATH, "w", encoding="utf-8") as f:
-        json.dump(metas, f)
+    json.dump(docs, open(DOCS_PATH, "w", encoding="utf-8"))
+    json.dump(metas, open(META_PATH, "w", encoding="utf-8"))
 
     return {"files": len(files), "docs": len(docs)}
