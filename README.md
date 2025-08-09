@@ -4,7 +4,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 ![Dockerized](https://img.shields.io/badge/docker-ready-informational)
 ![Status](https://img.shields.io/badge/status-MVP--demo-brightgreen)
-[![CI](https://github.com/<YOUR_GH_USERNAME>/claimsight-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/<YOUR_GH_USERNAME>/claimsight-ai/actions/workflows/ci.yml)
+[![CI](https://github.com/mikegashash/claimsight-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/<YOUR_GH_USERNAME>/claimsight-ai/actions/workflows/ci.yml)
 
 **ClaimSight AI** is an end-to-end claims intelligence platform for insurance:
 - **RAG-powered policy reasoning** with citations (vector search + **cross-encoder reranker**)
