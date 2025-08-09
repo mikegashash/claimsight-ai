@@ -154,7 +154,10 @@ def coverage_check(claim: dict):
 
     for h in hits:
         t = (h["text"] or "").lower()
-        cites.append(f'{h["meta"].get("policy_id","unknown")} – {h{"meta"}.get("section","unknown")}')
+        cites.append(
+            f'{h["meta"].get("policy_id", "unknown")} – {h["meta"].get("section", "unknown")}'
+        )
+
 
         # Water
         if "water backup" in t and "excluded" in t and loss_type == "water":
