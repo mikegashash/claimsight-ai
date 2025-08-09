@@ -1,34 +1,78 @@
+# services/snowflake_io.py
 import os
 import pandas as pd
-import snowflake.connector
+from typing import Optional, Dict, Any
 
-def sf_conn():
+def _get_conn():
+    """Return a live Snowflake connection or None if not configured."""
+    try:
+        import snowflake.connector  # type: ignore
+    except Exception:
+        return None
+
+    env = {
+        "user": os.getenv("SNOWFLAKE_USER"),
+        "password": os.getenv("SNOWFLAKE_PASSWORD"),
+        "account": os.getenv("SNOWFLAKE_ACCOUNT"),
+        "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
+        "database": os.getenv("SNOWFLAKE_DATABASE"),
+        "schema": os.getenv("SNOWFLAKE_SCHEMA", "PUBLIC"),
+    }
+    if not all(env.values()):
+        return None
+
     return snowflake.connector.connect(
-        user=os.getenv("SNOWFLAKE_USER"),
-        password=os.getenv("SNOWFLAKE_PASSWORD"),
-        account=os.getenv("SNOWFLAKE_ACCOUNT"),
-        warehouse=os.getenv("SNOWFLAKE_WAREHOUSE"),
-        database=os.getenv("SNOWFLAKE_DATABASE"),
-        schema=os.getenv("SNOWFLAKE_SCHEMA", "PUBLIC"),
-        role=os.getenv("SNOWFLAKE_ROLE"),
+        user=env["user"],
+        password=env["password"],
+        account=env["account"],
+        warehouse=env["warehouse"],
+        database=env["database"],
+        schema=env["schema"],
     )
 
-def df_to_snowflake(df: pd.DataFrame, table: str):
-    conn = sf_conn(); cs = conn.cursor()
+def df_to_snowflake(df: pd.DataFrame, table: str) -> Dict[str, Any]:
+    """
+    Create table if needed and insert rows. If Snowflake isn't configured,
+    return a skip status (so the API still runs in demos).
+    """
+    conn = _get_conn()
+    if conn is None:
+        return {"status": "skipped (no snowflake creds)", "table": table, "rows": len(df)}
+
+    cols_def = ", ".join([f'"{c}" STRING' for c in df.columns])
+    create_sql = f'CREATE TABLE IF NOT EXISTS "{table}" ({cols_def})'
+
+    # Prepare rows as tuples of strings
+    rows = [tuple("" if pd.isna(v) else str(v) for v in rec) for rec in df.to_numpy()]
+
+    placeholders = ", ".join(["%s"] * len(df.columns))
+    insert_sql = f'INSERT INTO "{table}" VALUES ({placeholders})'
+
+    cur = conn.cursor()
     try:
-        cols = ", ".join(f'"{c}"' for c in df.columns)
-        cs.execute(f'create table if not exists "{table}" ({", ".join([f\'"{c}" string\' for c in df.columns])})')
-        cs.executemany(
-            f'insert into "{table}" ({cols}) values ({", ".join(["%s"]*len(df.columns))})',
-            [tuple(None if pd.isna(v) else str(v) for v in row) for _, row in df.iterrows()]
-        )
+        cur.execute(create_sql)
+        if rows:
+            cur.executemany(insert_sql, rows)
         conn.commit()
+        return {"status": "ok", "table": table, "rows": len(rows)}
     finally:
-        cs.close(); conn.close()
+        cur.close()
+        conn.close()
 
 def snowflake_query(sql: str) -> pd.DataFrame:
-    conn = sf_conn()
+    """
+    Run a SELECT and return a DataFrame. If not configured, return empty df.
+    """
+    conn = _get_conn()
+    if conn is None:
+        return pd.DataFrame()
+
+    cur = conn.cursor()
     try:
-        return pd.read_sql(sql, conn)
+        cur.execute(sql)
+        cols = [c[0] for c in cur.description] if cur.description else []
+        data = cur.fetchall()
+        return pd.DataFrame(data, columns=cols)
     finally:
+        cur.close()
         conn.close()
