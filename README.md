@@ -79,4 +79,3 @@ make test     # run pytest inside API container
 make train    # train toy XGBoost model via admin API
 make logs     # tail logs
 make down     # stop stack
-
