@@ -1,0 +1,37 @@
+## **2️⃣ docker-compose.yaml**
+
+```yaml
+version: '3.9'
+services:
+  api:
+    build: ./services/api
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+      - chroma
+
+  ui:
+    build: ./ui
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    depends_on:
+      - api
+
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: claims
+      POSTGRES_PASSWORD: claims
+      POSTGRES_DB: claimsdb
+    ports:
+      - "5432:5432"
+
+  chroma:
+    image: chromadb/chroma
+    ports:
+      - "8001:8001"
