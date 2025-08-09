@@ -47,6 +47,30 @@ import joblib
 import sys, os as _os
 sys.path.append(_os.path.abspath("/app/services"))
 
+@app.get("/adapters/guidewire/policy/{policy_id}")
+def gw_policy(policy_id: str):
+    q = PolicyQuery(policy_id=policy_id)
+    return pc_get_policy(q)
+
+@app.get("/adapters/guidewire/claim/{claim_id}")
+def gw_claim(claim_id: str):
+    return cc_get_claim(claim_id)
+
+@app.post("/adapters/guidewire/fnol")
+def gw_create_fnol(claim: dict):
+    model = ClaimFNOL(**claim)
+    return cc_create_fnol(model)
+
+@app.get("/adapters/duckcreek/policy/{policy_id}")
+def dc_policy(policy_id: str):
+    q = PolicyQuery(policy_id=policy_id)
+    return pas_get_policy(q)
+
+@app.get("/adapters/duckcreek/policy/{policy_id}/endorsements")
+def dc_endorsements(policy_id: str):
+    return pas_list_endorsements(policy_id)
+
+
 
 app = FastAPI(title="ClaimSight AI API")
 
