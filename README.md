@@ -32,7 +32,7 @@ Built for enterprise-scale claims workflows (Guidewire, Duck Creek, custom syste
 claimsight-ai/
 README.md
 /data/ # Synthetic policies, claims, docs
-/srvices/
+/services/
 api/ # FastAPI endpoints
 rag/ # Indexing + retrieval
 ml/ # Fraud model training + inference
