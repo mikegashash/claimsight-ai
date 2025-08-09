@@ -13,6 +13,10 @@ import xgboost as xgb
 import shap
 import joblib
 
+import sys, os as _os
+sys.path.append(_os.path.abspath("/app/services"))
+
+
 app = FastAPI(title="ClaimSight AI API")
 
 RETRIEVER = None
