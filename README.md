@@ -77,5 +77,18 @@ flowchart LR
     API --> D4
     API --> D5
     API --> S1
+```
+### 🔌 Core System Integrations (stubs)
+
+| Endpoint                                                | Description                                 |
+|---------------------------------------------------------|---------------------------------------------|
+| `/adapters/guidewire/policy/{policy_id}`                | Guidewire **PolicyCenter** policy summary   |
+| `/adapters/guidewire/claim/{claim_id}`                  | Guidewire **ClaimCenter** claim details     |
+| `/adapters/guidewire/fnol` (POST)                       | Create FNOL payload stub                    |
+| `/adapters/duckcreek/policy/{policy_id}`                | Duck Creek PAS policy summary               |
+| `/adapters/duckcreek/policy/{policy_id}/endorsements`   | Duck Creek endorsements list                |
+
+> These are safe **stubs** for demos/unit tests. Replace base URLs/auth to connect to real environments via REST/SOAP.
+
 
 
