@@ -1,4 +1,12 @@
 fastapi
 uvicorn[standard]
-pydantic
 python-multipart
+pydantic
+pandas
+numpy
+chromadb
+sentence-transformers
+scikit-learn
+xgboost
+shap
+PyPDF2
