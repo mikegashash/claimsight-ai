@@ -9,6 +9,25 @@ sys.path.append(_os.path.abspath("/app/services"))
 
 from ocr.pii import mask_pii
 
+from fastapi import HTTPException
+from snowflake_io import df_to_snowflake, snowflake_query
+
+@app.post("/integrations/snowflake/upload_claims")
+def upload_claims_to_snowflake():
+    try:
+        df = pd.read_csv("/app/data/claims.csv")
+        df_to_snowflake(df.head(100), table="CLAIMS_SAMPLE")
+        return {"status": "uploaded", "rows": int(min(len(df),100))}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/integrations/snowflake/sample_query")
+def snowflake_sample_query():
+    try:
+        df = snowflake_query('select * from "CLAIMS_SAMPLE" limit 5')
+        return {"rows": df.to_dict(orient="records")}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # --- RAG imports ---
 from rag.index_policies import build_index
