@@ -1,0 +1,15 @@
+POLICY P1001 — Standard Homeowners (HO-3)
+
+Section 1: Dwelling (Coverage A)
+We cover sudden and accidental direct physical loss to the dwelling unless excluded.
+Water backup from sewers or drains is EXCLUDED unless an endorsement applies.
+
+Section 4: Perils Insured Against
+Fire, lightning, windstorm, and hail are covered causes of loss.
+Flood is EXCLUDED. Wear and tear EXCLUDED.
+
+Section 5: Endorsements
+- Water Backup Endorsement: Water/sewer backup losses up to $10,000 are covered.
+
+Section 6: Conditions
+Insured must provide prompt notice and cooperate with investigation.
