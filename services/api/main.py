@@ -1,9 +1,10 @@
 # services/api/main.py
 
 import sys, os as _os
-sys.path.append(_os.path.abspath("/app/services"))  # allow 'services.*' imports when running in container
+sys.path.append(_os.path.abspath("/app/services"))  # enable 'services.*' imports in-container
 
 from fastapi import FastAPI, UploadFile, HTTPException
+from fastapi import File
 from typing import List
 import os
 import pandas as pd
@@ -29,8 +30,8 @@ from integrations.duckcreek_adapter import pas_list_endorsements, pas_get_policy
 import xgboost as xgb
 import shap
 
+# ---- PDF Report ----
 from report import build_claim_packet_pdf
-
 
 app = FastAPI(title="ClaimSight AI API")
 
@@ -106,6 +107,17 @@ def health_check():
     return {"status": "ok"}
 
 
+# ========= Simple RAG search for UI tab =========
+@app.get("/rag/search")
+def rag_search(q: str, policy_id: str | None = None):
+    if RETRIEVER is None:
+        raise HTTPException(status_code=503, detail="Retriever not initialized")
+    where = {"policy_id": policy_id} if policy_id else None
+    hits = RETRIEVER.search(q, where=where)
+    hits = rerank(q, hits, top_n=5)
+    return {"query": q, "results": hits}
+
+
 # ========= Coverage (RAG + Endorsements) =========
 @app.post("/claims/coverage")
 def coverage_check(claim: dict):
@@ -142,7 +154,7 @@ def coverage_check(claim: dict):
 
     for h in hits:
         t = (h["text"] or "").lower()
-        cites.append(f'{h["meta"].get("policy_id","unknown")} – {h["meta"].get("section","unknown")}')
+        cites.append(f'{h["meta"].get("policy_id","unknown")} – {h{"meta"}.get("section","unknown")}')
 
         # Water
         if "water backup" in t and "excluded" in t and loss_type == "water":
@@ -230,13 +242,38 @@ def risk_score(claim: dict):
     }
 
 
-# ========= Document Triage (PII mask demo) =========
+# ========= Document OCR + PII Masking =========
+@app.post("/ocr")
+async def ocr_endpoint(file: UploadFile = File(...), mask_pii_flag: bool = True):
+    """
+    Minimal OCR: tries pytesseract for images; otherwise returns filename stub.
+    Always masks PII if mask_pii_flag=True.
+    """
+    try:
+        content = await file.read()
+        text = ""
+        # naive image sniff
+        if (file.content_type or "").startswith("image/"):
+            try:
+                from PIL import Image
+                import io, pytesseract
+                img = Image.open(io.BytesIO(content))
+                text = pytesseract.image_to_string(img) or ""
+            except Exception:
+                text = ""
+        # If not image or OCR failed, fall back to filename
+        if not text:
+            text = f"Uploaded: {file.filename}"
+        if mask_pii_flag:
+            text = mask_pii(text)
+        return {"text": text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========= Document Triage (PII mask demo via filenames) =========
 @app.post("/triage/docs")
 async def triage_docs(files: List[UploadFile]):
-    """
-    Demo: returns masked excerpt using filename text.
-    (Extend with real OCR + Presidio masking on extracted text.)
-    """
     out = []
     for f in files:
         fname = f.filename or ""
@@ -277,6 +314,31 @@ def train_risk():
         "train_pos_rate": float(y_tr.mean()),
         "test_pos_rate": float(y_te.mean()),
     }
+
+
+# ========= Reports: Case Packet (PDF) =========
+@app.post("/reports/claim_packet")
+def generate_claim_packet(claim: dict):
+    """
+    Generates a PDF 'case packet' by calling coverage + risk internally,
+    then returns a PDF file as application/pdf.
+    """
+    # 1) Call coverage & risk
+    cov = coverage_check(claim)
+    risk = risk_score({
+        "loss_type": claim.get("loss_type"),
+        "amount": claim.get("amount", 0),
+        "claimant_history_count": claim.get("claimant_history_count", 0)
+    })
+
+    # 2) Build PDF
+    pdf_bytes = build_claim_packet_pdf(claim, cov, risk)
+
+    # 3) Return as binary response
+    from fastapi.responses import Response
+    filename = f"claimsight_case_packet_{claim.get('claim_id','N_A')}.pdf"
+    return Response(content=pdf_bytes, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename=\"{filename}\"'})
 
 
 # ========= Snowflake Integrations (optional) =========
@@ -326,27 +388,3 @@ def dc_policy(policy_id: str):
 @app.get("/adapters/duckcreek/policy/{policy_id}/endorsements")
 def dc_endorsements(policy_id: str):
     return pas_list_endorsements(policy_id)
-
-@app.post("/reports/claim_packet")
-def generate_claim_packet(claim: dict):
-    """
-    Generates a PDF 'case packet' by calling coverage + risk internally,
-    then returns a PDF file (bytes) as application/pdf.
-    """
-    # 1) Call coverage & risk
-    cov = coverage_check(claim)
-    risk = risk_score({
-        "loss_type": claim.get("loss_type"),
-        "amount": claim.get("amount", 0),
-        "claimant_history_count": claim.get("claimant_history_count", 0)
-    })
-
-    # 2) Build PDF
-    pdf_bytes = build_claim_packet_pdf(claim, cov, risk)
-
-    # 3) Return as binary response
-    from fastapi.responses import Response
-    filename = f"claimsight_case_packet_{claim.get('claim_id','N_A')}.pdf"
-    return Response(content=pdf_bytes, media_type="application/pdf",
-                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
-
