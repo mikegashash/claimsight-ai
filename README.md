@@ -1,43 +1,71 @@
-# ClaimSight AI — Open Source Claims Intelligence Platform
+# ClaimSight AI — Open-Source Claims Intelligence Platform
 
-**ClaimSight AI** is an open-source, end-to-end insurance claims intelligence platform that combines:
-- **RAG-powered policy reasoning** for accurate coverage determinations with citations
-- **ML-based fraud/risk scoring** with explainable outputs
-- **Document triage** for high-volume claims processing
-- **Streamlit UI** for rapid demo and testing
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+![Dockerized](https://img.shields.io/badge/docker-ready-informational)
+![Status](https://img.shields.io/badge/status-MVP--demo-brightgreen)
+[![CI](https://github.com/<YOUR_GH_USERNAME>/claimsight-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/<YOUR_GH_USERNAME>/claimsight-ai/actions/workflows/ci.yml)
 
-Built for enterprise-scale claims workflows (Guidewire, Duck Creek, custom systems) with a **privacy-first, auditable, and modular architecture**.
+**ClaimSight AI** is an end-to-end claims intelligence platform for insurance:
+- **RAG-powered policy reasoning** with citations (vector search + **cross-encoder reranker**)
+- **Fraud/risk scoring** (XGBoost) with **SHAP** explanations
+- **Document triage** with **Presidio PII masking**
+- **Streamlit UI** + **FastAPI** + **Docker Compose**
+- **Snowflake connector** for enterprise data integration
 
----
-
-## Features
-- **Coverage Determination** – Answers coverage questions with policy section citations using Retrieval-Augmented Generation (RAG).
-- **Fraud/Risk Scoring** – Tabular ML model + rules for fast, explainable risk assessment.
-- **Explainable AI** – SHAP plots and human-readable reasons for every score.
-- **Document Triage** – Auto-classify PDFs (e.g., invoices, police reports) and extract structured fields.
-- **Synthetic Data** – 100% privacy-safe, production-like datasets for demo and testing.
+> Privacy-first: synthetic sample data included; PII masking is built-in.
 
 ---
 
-## Tech Stack
-**Core:** Python, FastAPI, Streamlit, FAISS/Chroma, Pandas, NumPy, scikit-learn, XGBoost, PyTorch  
-**OCR/PII:** Tesseract, Presidio  
-**MLOps:** MLflow, Docker Compose, GitHub Actions  
-**Storage:** Postgres, MinIO (S3-compatible), Vector DB  
-**Integration Ready:** Snowflake connector, Kafka stubs
+## 🧭 Architecture
 
----
+```mermaid
+flowchart LR
+    subgraph UI["Streamlit UI"]
+      U1[Upload Claim & Docs]
+      U2[Coverage Q&A]
+      U3[Risk Score + SHAP]
+    end
 
-## Repo Structure
-claimsight-ai/
-README.md
-/data/ # Synthetic policies, claims, docs
-/services/
-api/ # FastAPI endpoints
-rag/ # Indexing + retrieval
-ml/ # Fraud model training + inference
-ocr/ # Document OCR + PII masking
-/ui/ # Streamlit frontend
-/configs/ # Prompt templates, features.yaml
-/docker/ # Container configs
-docker-compose.yaml
+    subgraph API["FastAPI"]
+      A1[/POST /claims/coverage/]
+      A2[/POST /claims/risk/]
+      A3[/POST /triage/docs/]
+      A4[/GET /integrations/snowflake/*/]
+    end
+
+    subgraph RAG["RAG Service"]
+      R1[Chunk + Embed Policies]
+      R2[FAISS/Chroma Vector DB]
+      R3[Cross-Encoder Reranker]
+    end
+
+    subgraph ML["Risk Model"]
+      M1[Feature Build]
+      M2[XGBoost Classifier]
+      M3[SHAP Explainer]
+    end
+
+    subgraph Data["Storage"]
+      D1[(Postgres metadata)]
+      D2[(MinIO/S3 - docs)]
+      D3[(Vector store)]
+      D4[(models/)]
+      D5[(data/claims.csv)]
+    end
+
+    subgraph Integrations["Enterprise Integrations"]
+      S1[(Snowflake)]
+    end
+
+    UI -->|REST| API
+    A1 --> RAG
+    RAG --> A1
+    A2 --> ML
+    ML --> A2
+    A3 -->|OCR + PII| D2
+    API --> D1
+    API --> D3
+    API --> D4
+    API --> D5
+    API --> S1
