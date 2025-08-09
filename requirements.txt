@@ -1,0 +1,9 @@
+# requirements.txt
+-f ./services/api/requirements.txt
+-f ./services/ui/requirements.txt
+pandas
+scikit-learn
+xgboost
+shap
+presidio-analyzer
+presidio-anonymizer
