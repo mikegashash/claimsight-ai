@@ -2,7 +2,13 @@ from fastapi import FastAPI, UploadFile
 from typing import List
 import os, json, math
 
+
+
 from rag.reranker import rerank
+
+from integrations.models import PolicyQuery, ClaimFNOL
+from integrations.guidewire_adapter import pc_get_policy, cc_create_fnol, cc_get_claim
+from integrations.duckcreek_adapter import pas_get_policy, pas_list_endorsements
 
 import sys, os as _os
 sys.path.append(_os.path.abspath("/app/services"))
