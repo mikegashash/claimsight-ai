@@ -326,3 +326,27 @@ def dc_policy(policy_id: str):
 @app.get("/adapters/duckcreek/policy/{policy_id}/endorsements")
 def dc_endorsements(policy_id: str):
     return pas_list_endorsements(policy_id)
+
+@app.post("/reports/claim_packet")
+def generate_claim_packet(claim: dict):
+    """
+    Generates a PDF 'case packet' by calling coverage + risk internally,
+    then returns a PDF file (bytes) as application/pdf.
+    """
+    # 1) Call coverage & risk
+    cov = coverage_check(claim)
+    risk = risk_score({
+        "loss_type": claim.get("loss_type"),
+        "amount": claim.get("amount", 0),
+        "claimant_history_count": claim.get("claimant_history_count", 0)
+    })
+
+    # 2) Build PDF
+    pdf_bytes = build_claim_packet_pdf(claim, cov, risk)
+
+    # 3) Return as binary response
+    from fastapi.responses import Response
+    filename = f"claimsight_case_packet_{claim.get('claim_id','N_A')}.pdf"
+    return Response(content=pdf_bytes, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
