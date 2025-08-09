@@ -11,3 +11,6 @@ xgboost
 shap
 PyPDF2
 torch
+presidio-analyzer
+presidio-anonymizer
+spacy
