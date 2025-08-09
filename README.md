@@ -17,7 +17,7 @@
 
 ---
 
-## 🧭 Architecture
+## Architecture
 
 ```mermaid
 flowchart LR
