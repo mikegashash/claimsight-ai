@@ -73,7 +73,6 @@ flowchart LR
 
 ## Developer Experience (Makefile)
 
-```bash
 make up       # build, seed data, start stack
 make test     # run pytest inside API container
 make train    # train toy XGBoost model via admin API
