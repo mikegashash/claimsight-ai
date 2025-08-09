@@ -10,7 +10,7 @@ Built for enterprise-scale claims workflows (Guidewire, Duck Creek, custom syste
 
 ---
 
-## 🚀 Features
+## Features
 - **Coverage Determination** – Answers coverage questions with policy section citations using Retrieval-Augmented Generation (RAG).
 - **Fraud/Risk Scoring** – Tabular ML model + rules for fast, explainable risk assessment.
 - **Explainable AI** – SHAP plots and human-readable reasons for every score.
@@ -19,7 +19,7 @@ Built for enterprise-scale claims workflows (Guidewire, Duck Creek, custom syste
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 **Core:** Python, FastAPI, Streamlit, FAISS/Chroma, Pandas, NumPy, scikit-learn, XGBoost, PyTorch  
 **OCR/PII:** Tesseract, Presidio  
 **MLOps:** MLflow, Docker Compose, GitHub Actions  
