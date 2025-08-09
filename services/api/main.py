@@ -2,6 +2,9 @@ from fastapi import FastAPI, UploadFile
 from typing import List
 import os, json, math
 
+from rag.reranker import rerank
+
+
 # --- RAG imports ---
 from rag.index_policies import build_index
 from rag.retriever import PolicyRetriever
