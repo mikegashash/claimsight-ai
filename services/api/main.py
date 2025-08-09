@@ -1,7 +1,7 @@
 # services/api/main.py
 
 import sys, os as _os
-sys.path.append(_os.path.abspath("/app/services"))
+sys.path.append(_os.path.abspath("/app/services"))  # allow 'services.*' imports when running in container
 
 from fastapi import FastAPI, UploadFile, HTTPException
 from typing import List
@@ -9,7 +9,7 @@ import os
 import pandas as pd
 import numpy as np
 
-# ---- RAG / Retrieval ----
+# ---- RAG (FAISS) ----
 from rag.index_policies import build_index
 from rag.retriever import PolicyRetriever
 from rag.reranker import rerank
@@ -29,18 +29,22 @@ from integrations.duckcreek_adapter import pas_list_endorsements, pas_get_policy
 import xgboost as xgb
 import shap
 
+
 app = FastAPI(title="ClaimSight AI API")
 
 # ========= Globals =========
-RETRIEVER = None
-MODEL = None
-EXPLAINER = None
+RETRIEVER: PolicyRetriever | None = None
+MODEL: xgb.XGBClassifier | None = None
+EXPLAINER: shap.TreeExplainer | None = None
 FEATURES = ["amount", "claimant_history_count", "fire", "water", "theft", "collision"]
+
 
 # ========= Helpers =========
 def _one_hot_loss(loss_type: str):
     loss_types = ["fire", "water", "theft", "collision"]
-    return [1 if str(loss_type).lower() == lt else 0 for lt in loss_types]
+    lt = str(loss_type).lower()
+    return [1 if lt == k else 0 for k in loss_types]
+
 
 def fetch_endorsements(policy_id: str) -> list[dict]:
     """
@@ -64,13 +68,14 @@ def fetch_endorsements(policy_id: str) -> list[dict]:
         pass
     return []
 
+
 # ========= Startup =========
 @app.on_event("startup")
 def startup():
     """Build vector index (idempotent) and load risk model (if present)."""
     global RETRIEVER, MODEL, EXPLAINER
 
-    # Build (or rebuild) policy index so RAG has content
+    # Build policy index so RAG has content (safe if already exists)
     try:
         out = build_index()
         print("Policy index build:", out)
@@ -85,26 +90,32 @@ def startup():
         mdl = xgb.XGBClassifier()
         mdl.load_model(model_path)
         MODEL = mdl
-        bg = pd.DataFrame([[1000, 0, 0, 1, 0, 0]], columns=FEATURES)  # background for SHAP
+        # Background for SHAP
+        bg = pd.DataFrame([[1000, 0, 0, 1, 0, 0]], columns=FEATURES)
         EXPLAINER = shap.TreeExplainer(MODEL, bg)
         print("Loaded XGB risk model.")
     else:
         print("Risk model not found. Train via POST /admin/train_risk")
+
 
 # ========= Health =========
 @app.get("/healthz")
 def health_check():
     return {"status": "ok"}
 
+
 # ========= Coverage (RAG + Endorsements) =========
 @app.post("/claims/coverage")
 def coverage_check(claim: dict):
     """
     Coverage determination = RAG (policy text + reranker) + PAS/PC endorsements.
-    - If loss_type=water & endorsement (WTR-BKP / "water backup") present -> yes (endorsement).
+    - If loss_type=water & endorsement (WTR-BKP / “water backup”) present -> yes (endorsement).
     - Else follow policy exclusions/perils from retrieved sections.
     Returns rationale + citations + endorsements used.
     """
+    if RETRIEVER is None:
+        raise HTTPException(status_code=503, detail="Retriever not initialized")
+
     loss_type = str(claim.get("loss_type", "")).lower()
     notes = claim.get("notes", "") or ""
     policy_id = claim.get("policy_id")
@@ -178,6 +189,7 @@ def coverage_check(claim: dict):
         "retrieval_preview": hits[:2],
     }
 
+
 # ========= Risk (XGBoost + SHAP or heuristic) =========
 @app.post("/claims/risk")
 def risk_score(claim: dict):
@@ -215,6 +227,7 @@ def risk_score(claim: dict):
         "top_features": [FEATURES[i] for i in top_idx],
     }
 
+
 # ========= Document Triage (PII mask demo) =========
 @app.post("/triage/docs")
 async def triage_docs(files: List[UploadFile]):
@@ -228,6 +241,7 @@ async def triage_docs(files: List[UploadFile]):
         masked = mask_pii(fname)
         out.append({"filename": f.filename, "doc_type": "invoice", "pii_masked_excerpt": masked})
     return out
+
 
 # ========= Admin: train toy model =========
 @app.post("/admin/train_risk")
@@ -262,6 +276,7 @@ def train_risk():
         "test_pos_rate": float(y_te.mean()),
     }
 
+
 # ========= Snowflake Integrations (optional) =========
 @app.post("/integrations/snowflake/upload_claims")
 def upload_claims_to_snowflake():
@@ -272,6 +287,7 @@ def upload_claims_to_snowflake():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/integrations/snowflake/sample_query")
 def snowflake_sample_query():
     try:
@@ -280,25 +296,30 @@ def snowflake_sample_query():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # ========= Guidewire / Duck Creek Adapter Endpoints =========
 @app.get("/adapters/guidewire/policy/{policy_id}")
 def gw_policy(policy_id: str):
     q = PolicyQuery(policy_id=policy_id)
     return pc_get_policy(q)
 
+
 @app.get("/adapters/guidewire/claim/{claim_id}")
 def gw_claim(claim_id: str):
     return cc_get_claim(claim_id)
+
 
 @app.post("/adapters/guidewire/fnol")
 def gw_create_fnol(claim: dict):
     model = ClaimFNOL(**claim)
     return cc_create_fnol(model)
 
+
 @app.get("/adapters/duckcreek/policy/{policy_id}")
 def dc_policy(policy_id: str):
     q = PolicyQuery(policy_id=policy_id)
     return pas_get_policy(q)
+
 
 @app.get("/adapters/duckcreek/policy/{policy_id}/endorsements")
 def dc_endorsements(policy_id: str):
