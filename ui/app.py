@@ -1,161 +1,151 @@
-# ui/app.py
-import json
+import streamlit as st
 import requests
 import pandas as pd
-import streamlit as st
+from io import StringIO
 
 st.set_page_config(page_title="ClaimSight AI", layout="wide")
-st.title("🧠 ClaimSight AI — Demo UI")
 
-API_URL_DEFAULT = "http://api:8000"
+api_url = "http://localhost:8000"
 
-with st.sidebar:
-    st.markdown("### Settings")
-    api_url = st.text_input("API base URL", API_URL_DEFAULT)
-    st.caption("Tip: inside Docker Compose, API is http://api:8000")
+st.title("💡 ClaimSight AI — Insurance Claims Intelligence")
 
-tab_cov, tab_risk, tab_triage = st.tabs(["Coverage Check", "Risk Score", "Document Triage"])
+tabs = st.tabs([
+    "🏠 Home",
+    "📄 OCR & PII Masking",
+    "📜 Coverage Check",
+    "📊 Risk Scoring",
+    "📈 RAG Search",
+])
 
-# -----------------------
-# Coverage
-# -----------------------
-with tab_cov:
-    st.subheader("Policy Coverage Determination (RAG + Endorsements)")
+# ---------------- HOME TAB ----------------
+with tabs[0]:
+    st.header("Welcome")
+    st.write("""
+        ClaimSight AI integrates **RAG search**, **document AI**, and **predictive analytics** 
+        into a single, enterprise-grade insurance intelligence platform.
+    """)
 
-    # Quick form
-    with st.form("coverage_form", clear_on_submit=False):
-        c1, c2 = st.columns(2)
-        with c1:
-            claim_id = st.text_input("Claim ID", "C00001")
-            policy_id = st.text_input("Policy ID", "P1001")
-            loss_type = st.selectbox("Loss Type", ["water", "fire", "theft", "collision"])
-            amount = st.number_input("Claim Amount", min_value=0.0, value=2500.0, step=100.0)
-        with c2:
-            zip_code = st.text_input("ZIP", "44114")
-            prior = st.number_input("Prior Claims (count)", min_value=0, value=1, step=1)
-            notes = st.text_area("Notes", "Water backup in basement; sump failure during storm.")
-        submitted = st.form_submit_button("Run Coverage Check", type="primary")
+# ---------------- OCR TAB ----------------
+with tabs[1]:
+    st.header("Document OCR & PII Masking")
+    uploaded_file = st.file_uploader("Upload a document image or PDF", type=["png", "jpg", "jpeg", "pdf"])
+    if uploaded_file is not None:
+        files = {"file": uploaded_file}
+        mask_pii = st.checkbox("Mask PII", value=True)
+        resp = requests.post(f"{api_url}/ocr", files=files, params={"mask_pii": mask_pii})
+        if resp.status_code == 200:
+            st.subheader("Extracted Text")
+            st.text(resp.json().get("text", ""))
+        else:
+            st.error(f"OCR failed: {resp.text}")
 
-    # JSON payload editor (advanced)
-    with st.expander("Advanced: Edit raw JSON payload"):
+# ---------------- COVERAGE CHECK TAB ----------------
+with tabs[2]:
+    st.header("Coverage Check")
+    with st.form(key="coverage_form"):
+        claim_id = st.text_input("Claim ID")
+        policy_id = st.text_input("Policy ID")
+        loss_type = st.selectbox("Loss Type", ["fire", "water", "theft", "wind", "liability"])
+        amount = st.number_input("Claim Amount", min_value=0.0)
+        zip_code = st.text_input("ZIP Code")
+        notes = st.text_area("Notes / Description")
+        claimant_history_count = st.number_input("Prior Claims (Claimant)", min_value=0, step=1)
+        submitted = st.form_submit_button("Check Coverage")
+
+    if submitted:
         payload = {
             "claim_id": claim_id,
             "policy_id": policy_id,
             "loss_type": loss_type,
             "amount": amount,
             "zip": zip_code,
-            "claimant_history_count": prior,
             "notes": notes,
+            "claimant_history_count": claimant_history_count
         }
-        payload_str = st.text_area("Payload (JSON)", json.dumps(payload, indent=2), height=200)
+
         try:
-            payload = json.loads(payload_str or "{}")
-        except Exception:
-            st.warning("Invalid JSON in payload editor; using form values.")
+            # Coverage API
+            cov_resp = requests.post(f"{api_url}/claims/coverage", json=payload, timeout=60)
+            cov_resp.raise_for_status()
+            coverage_data = cov_resp.json()
 
-    if submitted:
-        try:
-            r = requests.post(f"{api_url}/claims/coverage", json=payload, timeout=30)
-            r.raise_for_status()
-            res = r.json()
+            st.subheader("Coverage Decision")
+            st.write(f"**Decision:** {coverage_data.get('coverage')}")
+            st.write(f"**Rationale:** {coverage_data.get('rationale')}")
 
-            # Top-line result
-            st.success(f"Coverage decision: **{res.get('coverage','n/a')}**")
-            if res.get("rationale"):
-                st.write("**Rationale**")
-                st.write(res["rationale"])
+            if coverage_data.get("endorsements"):
+                st.subheader("Endorsements")
+                st.table(pd.DataFrame(coverage_data["endorsements"]))
 
-            # Endorsements
-            endos = res.get("endorsements") or []
-            st.write("**Endorsements (from PAS/PC)**")
-            if endos:
-                df_endos = pd.DataFrame(endos)
-                st.dataframe(df_endos, use_container_width=True)
-            else:
-                st.caption("No endorsements returned or none applicable.")
+            if coverage_data.get("citations"):
+                st.subheader("Citations")
+                for cite in coverage_data["citations"]:
+                    st.write(f"- {cite}")
 
-            # Citations
-            cites = res.get("citations") or []
-            st.write("**Policy Citations**")
-            if cites:
-                st.code("\n".join(cites))
-            else:
-                st.caption("No citations returned.")
+            # Risk API
+            risk_resp = requests.post(f"{api_url}/claims/risk", json={
+                "loss_type": loss_type,
+                "amount": amount,
+                "claimant_history_count": claimant_history_count
+            }, timeout=60)
+            risk_resp.raise_for_status()
+            risk_data = risk_resp.json()
 
-            # Retrieval preview
-            prev = res.get("retrieval_preview") or []
-            if prev:
-                st.write("**Top Retrieval Snippets**")
-                for i, h in enumerate(prev, 1):
-                    with st.expander(f"Hit {i} — {h.get('meta',{}).get('section','unknown')}"):
-                        st.write(h.get("text","").strip() or "(empty)")
-                        st.caption(f"distance={h.get('distance')}, meta={h.get('meta')}")
+            st.subheader("Risk Score")
+            st.write(f"**Score:** {risk_data.get('score')}")
+            if "reasons" in risk_data:
+                st.write("**Reasons:**")
+                for r in risk_data["reasons"]:
+                    st.write(f"- {r}")
 
-            # Raw response
-            with st.expander("Raw Response"):
-                st.json(res)
+            # --- NEW PDF DOWNLOAD FEATURE ---
+            st.write("---")
+            st.subheader("Case Packet")
+            if st.button("Generate PDF Case Packet"):
+                try:
+                    pdf_resp = requests.post(f"{api_url}/reports/claim_packet", json=payload, timeout=60)
+                    pdf_resp.raise_for_status()
+                    st.download_button(
+                        label="Download Case Packet PDF",
+                        data=pdf_resp.content,
+                        file_name=f"claimsight_case_packet_{claim_id or 'N_A'}.pdf",
+                        mime="application/pdf",
+                    )
+                except Exception as e:
+                    st.error(f"PDF generation failed: {e}")
 
         except Exception as e:
-            st.error(f"Coverage request failed: {e}")
+            st.error(f"Coverage or Risk request failed: {e}")
 
-# -----------------------
-# Risk
-# -----------------------
-with tab_risk:
-    st.subheader("Fraud / Risk Score (XGBoost + SHAP)")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        loss_type_r = st.selectbox("Loss Type", ["water", "fire", "theft", "collision"], key="lt_r")
-        amount_r = st.number_input("Claim Amount", min_value=0.0, value=7500.0, step=100.0, key="amt_r")
-    with c2:
-        prior_r = st.number_input("Prior Claims Count", min_value=0, value=0, step=1, key="prior_r")
-        days_since = st.number_input("Days Since Policy Inception", min_value=0, value=120, step=10)
-    with c3:
-        provider_id = st.text_input("Provider ID", "PR321")
-        zip_r = st.text_input("ZIP", "10001")
+# ---------------- RISK SCORING TAB ----------------
+with tabs[3]:
+    st.header("Risk Scoring (Standalone)")
+    with st.form(key="risk_form"):
+        loss_type_risk = st.selectbox("Loss Type", ["fire", "water", "theft", "wind", "liability"])
+        amount_risk = st.number_input("Claim Amount", min_value=0.0, key="risk_amount")
+        claimant_hist_risk = st.number_input("Prior Claims (Claimant)", min_value=0, step=1, key="risk_hist")
+        submitted_risk = st.form_submit_button("Get Risk Score")
 
-    if st.button("Get Risk Score", type="primary"):
-        risk_payload = {
-            "loss_type": loss_type_r,
-            "amount": amount_r,
-            "claimant_history_count": prior_r,
-            "days_since_policy_start": days_since,
-            "provider_id": provider_id,
-            "zip": zip_r,
-        }
+    if submitted_risk:
         try:
-            rr = requests.post(f"{api_url}/claims/risk", json=risk_payload, timeout=20)
-            rr.raise_for_status()
-            res = rr.json()
-            st.metric("Risk Score", f"{res.get('score', 0):.2f}")
-            st.write("**Top Reasons**")
-            st.write("- " + "\n- ".join(res.get("reasons", [])) if res.get("reasons") else "n/a")
-            st.write("**Top Features**")
-            st.code(", ".join(res.get("top_features", [])) or "n/a")
-            with st.expander("Raw Response"):
-                st.json(res)
+            risk_resp = requests.post(f"{api_url}/claims/risk", json={
+                "loss_type": loss_type_risk,
+                "amount": amount_risk,
+                "claimant_history_count": claimant_hist_risk
+            })
+            risk_resp.raise_for_status()
+            st.json(risk_resp.json())
         except Exception as e:
             st.error(f"Risk request failed: {e}")
 
-# -----------------------
-# Triage
-# -----------------------
-with tab_triage:
-    st.subheader("Document Triage (PII masking demo)")
-    files = st.file_uploader("Upload PDFs/Images", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True)
-    if st.button("Classify Documents"):
-        if not files:
-            st.warning("Please upload at least one document.")
-        else:
-            try:
-                files_payload = [("files", (f.name, f.read(), f.type)) for f in files]
-                r = requests.post(f"{api_url}/triage/docs", files=files_payload, timeout=60)
-                r.raise_for_status()
-                res = r.json()
-                st.success("Classification Results")
-                df = pd.DataFrame(res)
-                st.dataframe(df, use_container_width=True)
-                with st.expander("Raw Response"):
-                    st.json(res)
-            except Exception as e:
-                st.error(f"Request failed: {e}")
+# ---------------- RAG SEARCH TAB ----------------
+with tabs[4]:
+    st.header("RAG Search")
+    query = st.text_input("Enter a search query")
+    if st.button("Search"):
+        try:
+            rag_resp = requests.get(f"{api_url}/rag/search", params={"q": query})
+            rag_resp.raise_for_status()
+            st.json(rag_resp.json())
+        except Exception as e:
+            st.error(f"RAG search failed: {e}")
