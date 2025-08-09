@@ -90,5 +90,12 @@ flowchart LR
 
 > These are safe **stubs** for demos/unit tests. Replace base URLs/auth to connect to real environments via REST/SOAP.
 
+**Coverage logic (demo):**  
+The `/claims/coverage` endpoint blends **RAG** (policy text with citations) and **core systems data** (Duck Creek / Guidewire endorsements).  
+- If `loss_type=water` and **WTR-BKP** (or equivalent) is present, result is **yes (endorsement)**.  
+- Otherwise, water backup is **excluded** per policy text.  
+- Fire / theft follow “perils insured against” language.  
+- All responses include **citations** and, when applicable, **endorsement codes**.
+
 
 
