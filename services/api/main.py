@@ -29,6 +29,8 @@ from integrations.duckcreek_adapter import pas_list_endorsements, pas_get_policy
 import xgboost as xgb
 import shap
 
+from report import build_claim_packet_pdf
+
 
 app = FastAPI(title="ClaimSight AI API")
 
