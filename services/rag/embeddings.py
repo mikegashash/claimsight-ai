@@ -1,6 +1,5 @@
 from sentence_transformers import SentenceTransformer
 import threading
-
 _model = None
 _lock = threading.Lock()
 
@@ -12,5 +11,4 @@ def get_model():
         return _model
 
 def embed_texts(texts):
-    model = get_model()
-    return model.encode(texts, normalize_embeddings=True).tolist()
+    return get_model().encode(texts, normalize_embeddings=True).tolist()
