@@ -31,3 +31,7 @@ requests==2.32.3
 
 # Misc
 python-multipart==0.0.9
+
+# PDF Report
+reportlab==4.2.2
+
