@@ -29,15 +29,15 @@ Built for enterprise-scale claims workflows (Guidewire, Duck Creek, custom syste
 ---
 
 ## Repo Structure
-**claimsight-ai/
-**README.md
-**/data/ # Synthetic policies, claims, docs
-**/srvices/
-**api/ # FastAPI endpoints
-**rag/ # Indexing + retrieval
-**ml/ # Fraud model training + inference
-**ocr/ # Document OCR + PII masking
-**/ui/ # Streamlit frontend
-**/configs/ # Prompt templates, features.yaml
-**/docker/ # Container configs
-**docker-compose.yaml
+claimsight-ai/
+README.md
+/data/ # Synthetic policies, claims, docs
+/srvices/
+api/ # FastAPI endpoints
+rag/ # Indexing + retrieval
+ml/ # Fraud model training + inference
+ocr/ # Document OCR + PII masking
+/ui/ # Streamlit frontend
+/configs/ # Prompt templates, features.yaml
+/docker/ # Container configs
+docker-compose.yaml
