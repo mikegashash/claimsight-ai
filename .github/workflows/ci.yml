@@ -8,27 +8,27 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      APP_HOME:  ${{ github.workspace }}
+    env:                     # <-- move env inside job here
+      APP_HOME: ${{ github.workspace }}
       VECTOR_DIR: ${{ github.workspace }}/.cache/vectorstore
       POLICY_DIR: ${{ github.workspace }}/data/policies
-      PYTHONPATH: ${{ github.workspace }}  # <-- add this
+      PYTHONPATH: ${{ github.workspace }}
 
-  steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    - name: Prep writable dirs
-      run: |
-        mkdir -p "$VECTOR_DIR" "$POLICY_DIR"
+      - name: Prep writable dirs
+        run: |
+          mkdir -p "$VECTOR_DIR" "$POLICY_DIR"
 
-    - name: Install deps
-      run: |
-        python -m pip install --upgrade pip
-        pip install --no-cache-dir -r services/api/requirements.txt
-        pip install pytest
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-cache-dir -r services/api/requirements.txt
+          pip install pytest
 
-    - name: Run tests
-      run: pytest -q
+      - name: Run tests
+        run: pytest -q
