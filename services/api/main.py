@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Dict
 
 import numpy as np
 import pandas as pd
@@ -16,12 +16,11 @@ APP_HOME = Path(os.environ.get("APP_HOME", Path.cwd()))
 DATA_DIR = Path(os.environ.get("DATA_DIR", APP_HOME / "data"))
 MODELS_DIR = Path(os.environ.get("MODELS_DIR", APP_HOME / "models"))
 
-# ---------- Integrations models (with safe fallback) ----------
+# ---------- Models (dataclass fallback if integrations package not importable) ----------
 try:
-    from services.integrations.models import PolicyQuery, ClaimFNOL  # type: ignore
+    from ..integrations.models import PolicyQuery, ClaimFNOL  # type: ignore
 except Exception:
     from dataclasses import dataclass
-    from typing import Optional, Dict
 
     @dataclass
     class PolicyQuery:
@@ -37,53 +36,42 @@ except Exception:
         loss_date: Optional[str] = None
         metadata: Optional[Dict] = None
 
-# ---------- Local services ----------
-from services.rag.index_policies import build_index
-from services.rag.retriever import PolicyRetriever
-from services.rag.reranker import rerank
+# ---------- Local services (relative imports; no PYTHONPATH issues) ----------
+from ..rag.index_policies import build_index
+from ..rag.retriever import PolicyRetriever
+from ..rag.reranker import rerank
 
-from services.ocr.pii import mask_pii
-from services.snowflake_io import df_to_snowflake, snowflake_query
+from ..ocr.pii import mask_pii
+from ..snowflake_io import df_to_snowflake, snowflake_query
+from ..report import build_claim_packet_pdf
 
-from services.integrations.guidewire_adapter import (
-    pc_get_policy,
-    cc_create_fnol,
-    cc_get_claim,
-)
-from services.integrations.duckcreek_adapter import (
-    pas_list_endorsements,
-    pas_get_policy,
-)
-
-from services.report import build_claim_packet_pdf
-# ---- Integrations (Guidewire / Duck Creek) ----
+# ---------- Integrations (guarded; provide stubs if import fails) ----------
 try:
-    from services.integrations.guidewire_adapter import (
+    from ..integrations.guidewire_adapter import (
         pc_get_policy,
         cc_create_fnol,
         cc_get_claim,
     )
 except Exception:
-    # Minimal stubs so CI import never fails
-    def pc_get_policy(q):  # q: PolicyQuery
+    def pc_get_policy(q: PolicyQuery):
         return {"policy_id": getattr(q, "policy_id", None), "endorsements": []}
-    def cc_create_fnol(model):  # model: ClaimFNOL
+    def cc_create_fnol(model: ClaimFNOL):
         return {"status": "mocked"}
     def cc_get_claim(claim_id: str):
         return {"claim_id": claim_id, "status": "mocked"}
 
 try:
-    from services.integrations.duckcreek_adapter import (
+    from ..integrations.duckcreek_adapter import (
         pas_list_endorsements,
         pas_get_policy,
     )
 except Exception:
     def pas_list_endorsements(policy_id: str):
         return {"policy_id": policy_id, "endorsements": []}
-    def pas_get_policy(q):  # q: PolicyQuery
+    def pas_get_policy(q: PolicyQuery):
         return {"policy_id": getattr(q, "policy_id", None), "endorsements": []}
 
-
+# ---------- App ----------
 app = FastAPI(title="ClaimSight AI API")
 
 # ========= Globals =========
@@ -92,13 +80,11 @@ MODEL: xgb.XGBClassifier | None = None
 EXPLAINER: shap.TreeExplainer | None = None
 FEATURES = ["amount", "claimant_history_count", "fire", "water", "theft", "collision"]
 
-
 # ========= Helpers =========
 def _one_hot_loss(loss_type: str):
     loss_types = ["fire", "water", "theft", "collision"]
     lt = str(loss_type).lower()
     return [1 if lt == k else 0 for k in loss_types]
-
 
 def fetch_endorsements(policy_id: str) -> list[dict]:
     """Prefer Duck Creek; fall back to Guidewire."""
@@ -116,7 +102,6 @@ def fetch_endorsements(policy_id: str) -> list[dict]:
         return gw.get("endorsements", []) or []
     except Exception:
         return []
-
 
 # ========= Startup =========
 @app.on_event("startup")
@@ -143,12 +128,10 @@ def startup():
     else:
         print("Risk model not found. Train via POST /admin/train_risk")
 
-
 # ========= Health =========
 @app.get("/healthz")
 def health_check():
     return {"status": "ok"}
-
 
 # ========= RAG search =========
 @app.get("/rag/search")
@@ -159,7 +142,6 @@ def rag_search(q: str, policy_id: str | None = None):
     hits = RETRIEVER.search(q, where=where)
     hits = rerank(q, hits, top_n=5)
     return {"query": q, "results": hits}
-
 
 # ========= Coverage =========
 @app.post("/claims/coverage")
@@ -217,7 +199,6 @@ def coverage_check(claim: dict):
         "retrieval_preview": hits[:2],
     }
 
-
 # ========= Risk =========
 @app.post("/claims/risk")
 def risk_score(claim: dict):
@@ -239,7 +220,6 @@ def risk_score(claim: dict):
     top_idx = np.argsort(-np.abs(shap_vals))[:3]
     reasons = [f"{FEATURES[i]} ({shap_vals[i]:+.3f})" for i in top_idx]
     return {"score": round(proba, 3), "reasons": reasons, "top_features": [FEATURES[i] for i in top_idx]}
-
 
 # ========= OCR + PII =========
 @app.post("/ocr")
@@ -263,7 +243,6 @@ async def ocr_endpoint(file: UploadFile = File(...), mask_pii_flag: bool = True)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 # ========= Triage =========
 @app.post("/triage/docs")
 async def triage_docs(files: List[UploadFile]):
@@ -272,7 +251,6 @@ async def triage_docs(files: List[UploadFile]):
         masked = mask_pii(f.filename or "")
         out.append({"filename": f.filename, "doc_type": "invoice", "pii_masked_excerpt": masked})
     return out
-
 
 # ========= Admin: train toy model =========
 @app.post("/admin/train_risk")
@@ -299,7 +277,6 @@ def train_risk():
 
     return {"status": "trained", "train_pos_rate": float(y_tr.mean()), "test_pos_rate": float(y_te.mean())}
 
-
 # ========= Reports =========
 @app.post("/reports/claim_packet")
 def generate_claim_packet(claim: dict):
@@ -315,7 +292,6 @@ def generate_claim_packet(claim: dict):
     return Response(content=pdf_bytes, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename=\"{filename}\"'})
 
-
 # ========= Snowflake (optional) =========
 @app.post("/integrations/snowflake/upload_claims")
 def upload_claims_to_snowflake():
@@ -326,7 +302,6 @@ def upload_claims_to_snowflake():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.get("/integrations/snowflake/sample_query")
 def snowflake_sample_query():
     try:
@@ -334,7 +309,6 @@ def snowflake_sample_query():
         return {"rows": df.to_dict(orient="records")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 # ========= Adapters =========
 @app.get("/adapters/guidewire/policy/{policy_id}")
