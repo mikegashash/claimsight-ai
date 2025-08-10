@@ -9,6 +9,9 @@ from services.integrations.models import PolicyQuery, ClaimFNOL
 from services.integrations.guidewire_adapter import pc_get_policy, cc_create_fnol, cc_get_claim
 from services.integrations.duckcreek_adapter import pas_list_endorsements, pas_get_policy
 from services.report import build_claim_packet_pdf
+# if you meant services/api/models.py:
+from services.api.models import PolicyQuery, ClaimFNOL
+
 
 # Add both the runtime services dir (Codespaces) and container dir (Docker) to sys.path
 _services_dir = str(Path(__file__).resolve().parents[1])  # .../services
