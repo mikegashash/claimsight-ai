@@ -4,25 +4,40 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:                     # <-- move env inside job here
-      APP_HOME: ${{ github.workspace }}
+    env:
+      APP_HOME:  ${{ github.workspace }}
       VECTOR_DIR: ${{ github.workspace }}/.cache/vectorstore
       POLICY_DIR: ${{ github.workspace }}/data/policies
-      PYTHONPATH: ${{ github.workspace }}
+      PYTHONPATH: ${{ github.workspace }}          # repo root on sys.path
+      EN_MODEL: en_core_web_sm                     # smaller spaCy model for CI
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
+      - name: Ensure PYTHONPATH (persist for all steps)
+        run: echo "PYTHONPATH=${PYTHONPATH}:${GITHUB_WORKSPACE}" >> "$GITHUB_ENV"
+
       - name: Prep writable dirs
-        run: |
-          mkdir -p "$VECTOR_DIR" "$POLICY_DIR"
+        run: mkdir -p "$VECTOR_DIR" "$POLICY_DIR"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
 
       - name: Install deps
         run: |
@@ -30,5 +45,16 @@ jobs:
           pip install --no-cache-dir -r services/api/requirements.txt
           pip install pytest
 
+      - name: Sanity import check
+        run: |
+          python - <<'PY'
+          import sys, os, importlib
+          sys.path.insert(0, os.getcwd())
+          import services
+          print("services module path:", services.__file__)
+          print("services.integrations present:",
+                bool(importlib.util.find_spec("services.integrations")))
+          PY
+
       - name: Run tests
-        run: pytest -q
+        run: python -m pytest -q
