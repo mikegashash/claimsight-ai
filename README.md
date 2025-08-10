@@ -4,8 +4,9 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 ![Dockerized](https://img.shields.io/badge/docker-ready-informational)
 ![Status](https://img.shields.io/badge/status-MVP--demo-brightgreen)
-![CI](https://github.com/mikegashash/claimsight-ai/actions/workflows/ci.yml/badge.svg?branch=main)
-![Bootstrap CI](https://github.com/mikegashash/claimsight-ai/actions/workflows/bootstrap.yml/badge.svg?branch=main)
+![CI](https://github.com/mikegashash/claimsight-ai/actions/workflows/ci.yml/badge.svg?branch=main&event=push)
+![Bootstrap CI](https://github.com/mikegashash/claimsight-ai/actions/workflows/bootstrap.yml/badge.svg?branch=main&event=push)
+
 
 
 **ClaimSight AI** is an end-to-end claims intelligence platform for insurance:
