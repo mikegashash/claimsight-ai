@@ -1,20 +1,16 @@
-from dataclasses import dataclass, asdict
-from typing import Optional, Dict, Any
-
-@dataclass
-class ClaimFNOL:
-    claim_id: str
-    policy_id: str
-    loss_date: str
-    loss_type: str
-    amount: float
-    description: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
-    def to_dict(self): return asdict(self)
+from dataclasses import dataclass
+from typing import Optional, Dict
 
 @dataclass
 class PolicyQuery:
-    policy_id: str
-    effective_date: Optional[str] = None
-    fields: Optional[list[str]] = None
-    def to_dict(self): return asdict(self)
+    policy_id: Optional[str] = None
+    coverage: Optional[str] = None
+    text: Optional[str] = None
+
+@dataclass
+class ClaimFNOL:
+    claim_id: Optional[str] = None
+    policy_id: Optional[str] = None
+    description: Optional[str] = None
+    loss_date: Optional[str] = None
+    metadata: Optional[Dict] = None
