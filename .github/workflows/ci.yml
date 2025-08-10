@@ -45,16 +45,5 @@ jobs:
           pip install --no-cache-dir -r services/api/requirements.txt
           pip install pytest
 
-      - name: Sanity import check
-        run: |
-          python - <<'PY'
-          import sys, os, importlib
-          sys.path.insert(0, os.getcwd())
-          import services
-          print("services module path:", services.__file__)
-          print("services.integrations present:",
-                bool(importlib.util.find_spec("services.integrations")))
-          PY
-
       - name: Run tests
         run: python -m pytest -q
