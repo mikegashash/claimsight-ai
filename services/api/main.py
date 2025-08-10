@@ -277,6 +277,8 @@ def train_risk():
 
     return {"status": "trained", "train_pos_rate": float(y_tr.mean()), "test_pos_rate": float(y_te.mean())}
 
+train_risk_model = train_risk
+
 # ========= Reports =========
 @app.post("/reports/claim_packet")
 def generate_claim_packet(claim: dict):
