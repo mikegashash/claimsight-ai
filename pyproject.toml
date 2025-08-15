@@ -1,0 +1,7 @@
+[project]
+name = "claimsight-ai"
+version = "0.0.1"
+requires-python = ">=3.11"
+
+[tool.setuptools]
+packages = ["services"]   # or ["claimsight_ai"] if you rename the package
