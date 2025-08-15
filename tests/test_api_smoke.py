@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-import services.api.main as api
+import claimsight_ai.api.main as api
 
 client = TestClient(api.app)
 

@@ -23,13 +23,13 @@ fi
 
 # 3) Build FAISS index (idempotent)
 python - <<'PY'
-from services.rag.index_policies import build_index
+from claimsight_ai.rag.index_policies import build_index
 print("index:", build_index())
 PY
 
 # 4) (Optional) Pre-train toy risk model so /claims/risk is ready
 python - <<'PY'
-from services.api.main import train_risk_model
+from claimsight_ai.api.main import train_risk_model
 try:
     train_risk_model()
     print("risk model: trained")
