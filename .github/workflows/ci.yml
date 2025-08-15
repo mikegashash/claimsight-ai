@@ -18,12 +18,18 @@ jobs:
       APP_HOME:  ${{ github.workspace }}
       VECTOR_DIR: ${{ github.workspace }}/.cache/vectorstore
       POLICY_DIR: ${{ github.workspace }}/data/policies
-      PYTHONPATH: ${{ github.workspace }}          # ensure repo root on sys.path
-      EN_MODEL: en_core_web_sm                     # small spaCy model for CI
+      PYTHONPATH: ${{ github.workspace }}          # repo root on sys.path
+      EN_MODEL: en_core_web_sm
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Show repo structure
+        run: |
+          echo "---- repo tree (top 2 levels) ----"
+          sudo apt-get update -y && sudo apt-get install -y tree
+          tree -L 2 || true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -40,46 +46,45 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/requirements-*.txt', 'services/api/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Project/Service requirements
           pip install --no-cache-dir -r services/api/requirements.txt
-          # Test tools
           pip install pytest
 
-      - name: Editable install if project is package (optional but recommended)
+      - name: Editable install (your package)
         run: |
           if [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
             echo "Installing project in editable mode..."
             pip install -e .
           else
-            echo "No pyproject.toml or setup.py found; relying on PYTHONPATH."
+            echo "No pyproject.toml or setup.py found; relying on PYTHONPATH only."
           fi
 
-      # Optional: spaCy model if your tests actually need it
-      - name: Install spaCy model (optional)
-        if: ${{ env.EN_MODEL != '' }}
+      - name: Print sys.path & verify imports
         run: |
           python - <<'PY'
+          import sys, pprint, importlib
+          print("---- first 10 sys.path entries ----")
+          pprint.pprint(sys.path[:10])
+          print("Attempting: import services.integrations")
           try:
-              import importlib; importlib.import_module("${{ env.EN_MODEL }}")
-              print("spaCy model already present.")
-          except Exception:
-              import sys, subprocess
-              subprocess.check_call([sys.executable, "-m", "spacy", "download", "${{ env.EN_MODEL }}"])
+              importlib.import_module("services.integrations")
+              print("✅ import services.integrations OK")
+          except Exception as e:
+              print("❌ import services.integrations FAILED:", repr(e))
+              # If your package is renamed, try alternate import:
+              try:
+                  importlib.import_module("claimsight_ai.integrations")
+                  print("✅ import claimsight_ai.integrations OK")
+              except Exception as e2:
+                  print("❌ import claimsight_ai.integrations FAILED:", repr(e2))
+                  raise SystemExit(1)
           PY
 
-      - name: Sanity import check (catches PYTHONPATH/package issues early)
-        run: |
-          python - <<'PY'
-          import sys, importlib, pprint
-          print("sys.path (first 5):"); pprint.pprint(sys.path[:5])
-          importlib.import_module("services.integrations")
-          print("✅ import services.integrations OK")
-          PY
-
-      - name: Run tests
-        run: python -m pytest -q
+      - name: Run tests (verbose to see exact failure)
+        env:
+          PYTHONWARNINGS: default
+        run: pytest -vv
