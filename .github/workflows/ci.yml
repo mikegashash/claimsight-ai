@@ -18,7 +18,7 @@ jobs:
       APP_HOME:  ${{ github.workspace }}
       VECTOR_DIR: ${{ github.workspace }}/.cache/vectorstore
       POLICY_DIR: ${{ github.workspace }}/data/policies
-      PYTHONPATH: ${{ github.workspace }}          # repo root on sys.path
+      PYTHONPATH: ${{ github.workspace }}
       EN_MODEL: en_core_web_sm
 
     steps:
@@ -27,8 +27,8 @@ jobs:
 
       - name: Show repo structure
         run: |
-          echo "---- repo tree (top 2 levels) ----"
           sudo apt-get update -y && sudo apt-get install -y tree
+          echo "---- repo tree (top 2 levels) ----"
           tree -L 2 || true
 
       - name: Set up Python
@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Persist PYTHONPATH for all steps
+      - name: Persist PYTHONPATH
         run: echo "PYTHONPATH=${PYTHONPATH}:${GITHUB_WORKSPACE}" >> "$GITHUB_ENV"
 
       - name: Prep writable dirs
@@ -51,40 +51,22 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install --no-cache-dir -r services/api/requirements.txt
+          pip install --no-cache-dir -r claimsight_ai/api/requirements.txt
           pip install pytest
 
-      - name: Editable install (your package)
-        run: |
-          if [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
-            echo "Installing project in editable mode..."
-            pip install -e .
-          else
-            echo "No pyproject.toml or setup.py found; relying on PYTHONPATH only."
-          fi
+      - name: Editable install (project)
+        run: pip install -e .
 
-      - name: Print sys.path & verify imports
+      - name: Sanity import check
         run: |
           python - <<'PY'
           import sys, pprint, importlib
-          print("---- first 10 sys.path entries ----")
-          pprint.pprint(sys.path[:10])
-          print("Attempting: import services.integrations")
-          try:
-              importlib.import_module("services.integrations")
-              print("✅ import services.integrations OK")
-          except Exception as e:
-              print("❌ import services.integrations FAILED:", repr(e))
-              # If your package is renamed, try alternate import:
-              try:
-                  importlib.import_module("claimsight_ai.integrations")
-                  print("✅ import claimsight_ai.integrations OK")
-              except Exception as e2:
-                  print("❌ import claimsight_ai.integrations FAILED:", repr(e2))
-                  raise SystemExit(1)
+          print("---- first 10 sys.path ----"); pprint.pprint(sys.path[:10])
+          importlib.import_module("claimsight_ai.integrations")
+          print("✅ import claimsight_ai.integrations OK")
           PY
 
-      - name: Run tests (verbose to see exact failure)
+      - name: Run tests
         env:
           PYTHONWARNINGS: default
         run: pytest -vv
