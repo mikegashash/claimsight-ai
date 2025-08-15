@@ -3,5 +3,5 @@ name = "claimsight-ai"
 version = "0.0.1"
 requires-python = ">=3.11"
 
-[tool.setuptools]
-packages = ["claimsight_ai"]
+[tool.setuptools.packages.find]
+include = ["claimsight_ai*"]
