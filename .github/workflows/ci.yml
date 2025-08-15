@@ -1,4 +1,5 @@
 name: CI
+
 on:
   push:
     branches: [ main ]
@@ -17,17 +18,19 @@ jobs:
       APP_HOME:  ${{ github.workspace }}
       VECTOR_DIR: ${{ github.workspace }}/.cache/vectorstore
       POLICY_DIR: ${{ github.workspace }}/data/policies
-      PYTHONPATH: ${{ github.workspace }}          # repo root on sys.path
-      EN_MODEL: en_core_web_sm                     # smaller spaCy model for CI
+      PYTHONPATH: ${{ github.workspace }}          # ensure repo root on sys.path
+      EN_MODEL: en_core_web_sm                     # small spaCy model for CI
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Ensure PYTHONPATH (persist for all steps)
+      - name: Persist PYTHONPATH for all steps
         run: echo "PYTHONPATH=${PYTHONPATH}:${GITHUB_WORKSPACE}" >> "$GITHUB_ENV"
 
       - name: Prep writable dirs
@@ -37,13 +40,46 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/requirements-*.txt', 'services/api/requirements.txt') }}
 
-      - name: Install deps
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          # Project/Service requirements
           pip install --no-cache-dir -r services/api/requirements.txt
+          # Test tools
           pip install pytest
+
+      - name: Editable install if project is package (optional but recommended)
+        run: |
+          if [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
+            echo "Installing project in editable mode..."
+            pip install -e .
+          else
+            echo "No pyproject.toml or setup.py found; relying on PYTHONPATH."
+          fi
+
+      # Optional: spaCy model if your tests actually need it
+      - name: Install spaCy model (optional)
+        if: ${{ env.EN_MODEL != '' }}
+        run: |
+          python - <<'PY'
+          try:
+              import importlib; importlib.import_module("${{ env.EN_MODEL }}")
+              print("spaCy model already present.")
+          except Exception:
+              import sys, subprocess
+              subprocess.check_call([sys.executable, "-m", "spacy", "download", "${{ env.EN_MODEL }}"])
+          PY
+
+      - name: Sanity import check (catches PYTHONPATH/package issues early)
+        run: |
+          python - <<'PY'
+          import sys, importlib, pprint
+          print("sys.path (first 5):"); pprint.pprint(sys.path[:5])
+          importlib.import_module("services.integrations")
+          print("✅ import services.integrations OK")
+          PY
 
       - name: Run tests
         run: python -m pytest -q
