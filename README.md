@@ -32,54 +32,60 @@
 ```mermaid
 flowchart LR
   subgraph UI["Streamlit UI"]
-    U1[Upload docs]
-    U2[Ask coverage Qs]
-    U3[View risk + SHAP]
-    U4[Download report]
+    U1["Upload docs"]
+    U2["Ask coverage Qs"]
+    U3["View risk + SHAP"]
+    U4["Download report"]
   end
 
   subgraph API["FastAPI (uvicorn)"]
-    A1[/POST /ocr/]
-    A2[/POST /triage/docs/]
-    A3[/POST /claims/coverage/]
-    A4[/POST /claims/risk/]
-    A5[/POST /reports/claim_packet/]
-    A6[/GET /integrations/.../]
+    A1["POST /ocr"]
+    A2["POST /triage/docs"]
+    A3["POST /claims/coverage"]
+    A4["POST /claims/risk"]
+    A5["POST /reports/claim_packet"]
+    A6["GET /integrations/*"]
   end
 
-  subgraph PII["PII Pipeline (Presidio)"]
-    P1[Detect entities]
-    P2[Mask/Redact]
+  subgraph PII["PII (Presidio)"]
+    P1["Detect entities"]
+    P2["Mask / redact"]
   end
 
-  subgraph RAG["RAG Engine"]
-    R1[Embed query]
-    R2[Vector search (Chroma)]
-    R3[Rerank (cross-encoder)]
-    R4[Compose answer + citations]
+  subgraph RAG["RAG engine"]
+    R1["Embed query"]
+    R2["Vector search (Chroma)"]
+    R3["Rerank (cross-encoder)"]
+    R4["Compose answer + citations"]
   end
 
-  subgraph MODELS["Model Store"]
-    M1[XGBoost risk model]
-    M2[Embedding model]
-    M3[Cross-encoder]
+  subgraph MODELS["Models"]
+    M1["XGBoost risk"]
+    M2["Embedding model"]
+    M3["Cross-encoder"]
   end
 
   subgraph STORES["Stores"]
-    V[(Chroma vectors)]
-    PG[(Postgres)]
-    FS[(models/, reports/, logs)]
+    V["Chroma vectors"]
+    PG["Postgres"]
+    FS["models/, reports/"]
   end
 
   subgraph INT["Integrations"]
-    GW[Guidewire adapter]
-    SF[Snowflake]
+    GW["Guidewire"]
+    SF["Snowflake"]
   end
 
+  %% flows
   U1 --> A1 --> PII
-  PII -->|clean text| A2 -->|typed docs| RAG
+  PII -->|clean text| A2 --> RAG
   U2 --> A3 --> RAG
-  RAG -->|top passages + citations| A3
+  R1 --> R2 --> R3 --> R4
+  RAG --- M2
+  RAG --- M3
+  R2 --- V
+
+  RAG -->|passages + citations| A3
   A3 --> PG
   A4 --> M1
   M1 -->|score + SHAP| A4
@@ -87,11 +93,9 @@ flowchart LR
   A6 --> GW
   A6 --> SF
 
-  RAG --- M2
-  RAG --- M3
-  R2 --- V
   A4 --- PG
   A5 --- PG
+
 
 ```
 ###  Core System Integrations (stubs)
