@@ -2,17 +2,21 @@ services:
   api:
     image: claimsight-ai-api:latest
     build:
-      context: .                         # build from repo root
-      dockerfile: claimsight_ai/api/Dockerfile
-    command: ["uvicorn", "claimsight_ai.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+      context: .                                  # repo root
+      dockerfile: claimsight_ai/api/Dockerfile    # adjust if yours lives elsewhere
+    command: >
+      uvicorn claimsight_ai.api.main:app
+      --host 0.0.0.0 --port 8000
+      --log-level info
+      --proxy-headers
     ports:
       - "8000:8000"
     volumes:
       - .:/workspace
     working_dir: /workspace
-    env_file: .env                       # optional, if you keep SNOWFLAKE creds here
+    env_file: .env                                # ok if missing; see fallbacks below
     environment:
-      # fallbacks so compose doesn’t spam warnings if vars aren’t set
+      # avoid noisy warnings if env file/vars aren’t set
       SNOWFLAKE_USER:       "${SNOWFLAKE_USER:-}"
       SNOWFLAKE_PASSWORD:   "${SNOWFLAKE_PASSWORD:-}"
       SNOWFLAKE_ACCOUNT:    "${SNOWFLAKE_ACCOUNT:-}"
@@ -20,11 +24,22 @@ services:
       SNOWFLAKE_DATABASE:   "${SNOWFLAKE_DATABASE:-}"
       SNOWFLAKE_SCHEMA:     "${SNOWFLAKE_SCHEMA:-}"
       SNOWFLAKE_ROLE:       "${SNOWFLAKE_ROLE:-}"
+      # make docs render at "/" in Codespaces
+      DOCS_AT_ROOT: "1"
+      FORWARDED_ALLOW_IPS: "*"                    # play nice with the proxy
+    healthcheck:
+      # no curl/wget required; use Python in the image
+      test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys\ntry:\n  urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5)\n  sys.exit(0)\nexcept Exception:\n  sys.exit(1)\nPY"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
 
   ui:
     build:
       context: .
-      dockerfile: ui/Dockerfile          # keep as-is if your UI Dockerfile is here
+      dockerfile: ui/Dockerfile
     image: claimsight-ai-ui:latest
     ports:
       - "8501:8501"
@@ -34,7 +49,9 @@ services:
     environment:
       API_URL: "http://api:8000"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    restart: unless-stopped
 
   postgres:
     image: postgres:14
@@ -46,13 +63,16 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
 
   chroma:
     image: chromadb/chroma
+    # the container listens on 8000; map it to host 8001
     ports:
-      - "8001:8001"
+      - "8001:8000"
     volumes:
       - chroma_data:/chroma/chroma
+    restart: unless-stopped
 
 volumes:
   postgres_data:
