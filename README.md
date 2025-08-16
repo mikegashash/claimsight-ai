@@ -98,6 +98,159 @@ flowchart LR
 
 
 ```
+## Coverage Q&A (RAG with citations)
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as Streamlit UI
+    participant API as FastAPI
+    participant GW as Guidewire Adapter
+    participant RAG as RAG Orchestrator
+    participant ENC as Embedder
+    participant VDB as Chroma (vectors)
+    participant RER as Cross-encoder
+    participant PG as Postgres
+
+    UI->>API: POST /claims/coverage {policy_id, question, context}
+    alt policy_id present
+        API->>GW: fetchPolicy(policy_id)
+        GW-->>API: policy metadata
+    end
+    API->>RAG: buildQueries(question, policy_metadata)
+    RAG->>ENC: embed(question)
+    ENC-->>RAG: q_vector
+    RAG->>VDB: search(q_vector, k)
+    VDB-->>RAG: candidate passages
+    RAG->>RER: rerank(candidates, question)
+    RER-->>RAG: top passages (scored)
+    RAG-->>API: answer + citations
+    API->>PG: persist coverage_result (audit)
+    API-->>UI: 200 {answer, citations, audit_id}
+```
+
+## OCR → PII Masking → Triage
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as Streamlit UI
+    participant API as FastAPI
+    participant OCR as OCR Engine
+    participant PII as Presidio (PII)
+    participant TRI as Triage Classifier
+    participant PG as Postgres
+
+    UI->>API: POST /ocr (multipart/form-data)
+    API->>OCR: extractText(file)
+    OCR-->>API: raw_text
+    API->>PII: analyze(raw_text)
+    PII-->>API: entities
+    API->>PII: anonymize(raw_text, entities)
+    PII-->>API: masked_text
+    API->>TRI: classify(masked_text)
+    TRI-->>API: doc_type, confidence
+    API->>PG: upsert {doc_meta, doc_type, pii_stats}
+    API-->>UI: 200 {masked_text, doc_type, pii_summary}
+
+```
+
+## Coverage Q&A (RAG with citations)
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as Streamlit UI
+    participant API as FastAPI
+    participant GW as Guidewire Adapter
+    participant RAG as RAG Orchestrator
+    participant ENC as Embedder
+    participant VDB as Chroma (vectors)
+    participant RER as Cross-encoder
+    participant PG as Postgres
+
+    UI->>API: POST /claims/coverage {policy_id, question, context}
+    alt policy_id present
+        API->>GW: fetchPolicy(policy_id)
+        GW-->>API: policy metadata
+    end
+    API->>RAG: buildQueries(question, policy_metadata)
+    RAG->>ENC: embed(question)
+    ENC-->>RAG: q_vector
+    RAG->>VDB: search(q_vector, k)
+    VDB-->>RAG: candidate passages
+    RAG->>RER: rerank(candidates, question)
+    RER-->>RAG: top passages (scored)
+    RAG-->>API: answer + citations
+    API->>PG: persist coverage_result (audit)
+    API-->>UI: 200 {answer, citations, audit_id}
+```
+
+## Risk scoring with SHAP
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as Streamlit UI
+    participant API as FastAPI
+    participant FE as Feature Builder
+    participant XGB as XGBoost Model
+    participant SHAP as SHAP Explainer
+    participant PG as Postgres
+
+    UI->>API: POST /claims/risk {claim_json}
+    API->>FE: buildFeatures(claim_json)
+    FE-->>API: features
+    API->>XGB: predict_proba(features)
+    XGB-->>API: risk_score
+    API->>SHAP: explain(features)
+    SHAP-->>API: top_features (contribs)
+    API->>PG: persist {risk_score, shap}
+    API-->>UI: 200 {risk_score, explanation}
+
+```
+
+## Report generation (auditable packet)
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as Streamlit UI
+    participant API as FastAPI
+    participant PG as Postgres
+    participant FS as File Store (models/reports)
+    participant SF as Snowflake (optional)
+
+    UI->>API: POST /reports/claim_packet {claim_id}
+    API->>PG: fetch claim, coverage_result, risk_result
+    API->>FS: compose PDF/JSON bundle
+    FS-->>API: report_path
+    opt export to Snowflake
+        API->>SF: upsert claim analytics
+        SF-->>API: ack
+    end
+    API-->>UI: 200 {download_url, report_meta}
+
+```
+
+## CI Badge
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Dev as You
+    participant GH as GitHub
+    participant CI as Actions Runner
+    participant PyPI as Pip/Wheels
+
+    Dev->>GH: push / PR (branch)
+    GH->>CI: trigger ci.yml
+    CI->>PyPI: pip install -e . + API deps
+    CI->>CI: pytest -vv (small models)
+    alt tests pass
+        CI-->>GH: success ✔
+        GH-->>Dev: green checks (merge allowed)
+    else tests fail
+        CI-->>GH: failure ✖
+        GH-->>Dev: logs & red badge
+    end
+
+```
+
 ###  Core System Integrations (stubs)
 
 | Endpoint                                                | Description                                 |
