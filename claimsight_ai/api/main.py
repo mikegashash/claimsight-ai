@@ -10,11 +10,21 @@ import pandas as pd
 import xgboost as xgb
 import shap
 from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi.responses import RedirectResponse
 
 # ---------- ENV / Paths ----------
 APP_HOME = Path(os.environ.get("APP_HOME", Path.cwd()))
 DATA_DIR = Path(os.environ.get("DATA_DIR", APP_HOME / "data"))
 MODELS_DIR = Path(os.environ.get("MODELS_DIR", APP_HOME / "models"))
+
+# Detect Codespaces and decide where to mount docs
+IS_CODESPACES = bool(
+    os.getenv("CODESPACE_NAME")
+    or os.getenv("CODESPACES")
+    or os.getenv("GITHUB_CODESPACE_TOKEN")
+)
+DOCS_AT_ROOT = os.getenv("DOCS_AT_ROOT", "1" if IS_CODESPACES else "0") == "1"
+ROOT_PATH = os.getenv("ROOT_PATH", "")
 
 # ---------- Models (dataclass fallback if integrations package not importable) ----------
 try:
@@ -72,7 +82,13 @@ except Exception:
         return {"policy_id": getattr(q, "policy_id", None), "endorsements": []}
 
 # ---------- App ----------
-app = FastAPI(title="ClaimSight AI API")
+app = FastAPI(
+    title="ClaimSight AI API",
+    version="0.1.0",
+    docs_url="/" if DOCS_AT_ROOT else "/docs",
+    openapi_url="/openapi.json",
+    root_path=ROOT_PATH,
+)
 
 # ========= Globals =========
 RETRIEVER: PolicyRetriever | None = None
@@ -132,6 +148,12 @@ def startup():
 @app.get("/healthz")
 def health_check():
     return {"status": "ok"}
+
+# If docs are NOT at root, expose "/" as a redirect to /docs
+if not DOCS_AT_ROOT:
+    @app.get("/", include_in_schema=False)
+    def root():
+        return RedirectResponse(url="/docs", status_code=307)
 
 # ========= RAG search =========
 @app.get("/rag/search")
@@ -292,7 +314,7 @@ def generate_claim_packet(claim: dict):
     from fastapi.responses import Response
     filename = f"claimsight_case_packet_{claim.get('claim_id','N_A')}.pdf"
     return Response(content=pdf_bytes, media_type="application/pdf",
-                    headers={"Content-Disposition": f'attachment; filename=\"{filename}\"'})
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 # ========= Snowflake (optional) =========
 @app.post("/integrations/snowflake/upload_claims")
@@ -332,14 +354,3 @@ def dc_policy(policy_id: str):
 @app.get("/adapters/duckcreek/policy/{policy_id}/endorsements")
 def dc_endorsements(policy_id: str):
     return pas_list_endorsements(policy_id)
-
-# claimsight_ai/api/main.py
-from fastapi.responses import RedirectResponse
-
-@app.get("/", include_in_schema=False)
-def root():
-    return RedirectResponse(url=app.docs_url or "/docs")
-
-@app.get("/healthz", include_in_schema=False)
-def healthz():
-    return {"ok": True}
