@@ -31,54 +31,68 @@
 
 ```mermaid
 flowchart LR
-    subgraph UI["Streamlit UI"]
-      U1[Upload Claim & Docs]
-      U2[Coverage Q&A]
-      U3[Risk Score + SHAP]
-    end
+  subgraph UI["Streamlit UI"]
+    U1[Upload docs]
+    U2[Ask coverage Qs]
+    U3[View risk + SHAP]
+    U4[Download report]
+  end
 
-    subgraph API["FastAPI"]
-      A1[/POST /claims/coverage/]
-      A2[/POST /claims/risk/]
-      A3[/POST /triage/docs/]
-      A4[/GET /integrations/snowflake/*/]
-    end
+  subgraph API["FastAPI (uvicorn)"]
+    A1[/POST /ocr/]
+    A2[/POST /triage/docs/]
+    A3[/POST /claims/coverage/]
+    A4[/POST /claims/risk/]
+    A5[/POST /reports/claim_packet/]
+    A6[/GET /integrations/.../]
+  end
 
-    subgraph RAG["RAG Service"]
-      R1[Chunk + Embed Policies]
-      R2[FAISS/Chroma Vector DB]
-      R3[Cross-Encoder Reranker]
-    end
+  subgraph PII["PII Pipeline (Presidio)"]
+    P1[Detect entities]
+    P2[Mask/Redact]
+  end
 
-    subgraph ML["Risk Model"]
-      M1[Feature Build]
-      M2[XGBoost Classifier]
-      M3[SHAP Explainer]
-    end
+  subgraph RAG["RAG Engine"]
+    R1[Embed query]
+    R2[Vector search (Chroma)]
+    R3[Rerank (cross-encoder)]
+    R4[Compose answer + citations]
+  end
 
-    subgraph Data["Storage"]
-      D1[(Postgres metadata)]
-      D2[(MinIO/S3 - docs)]
-      D3[(Vector store)]
-      D4[(models/)]
-      D5[(data/claims.csv)]
-    end
+  subgraph MODELS["Model Store"]
+    M1[XGBoost risk model]
+    M2[Embedding model]
+    M3[Cross-encoder]
+  end
 
-    subgraph Integrations["Enterprise Integrations"]
-      S1[(Snowflake)]
-    end
+  subgraph STORES["Stores"]
+    V[(Chroma vectors)]
+    PG[(Postgres)]
+    FS[(models/, reports/, logs)]
+  end
 
-    UI -->|REST| API
-    A1 --> RAG
-    RAG --> A1
-    A2 --> ML
-    ML --> A2
-    A3 -->|OCR + PII| D2
-    API --> D1
-    API --> D3
-    API --> D4
-    API --> D5
-    API --> S1
+  subgraph INT["Integrations"]
+    GW[Guidewire adapter]
+    SF[Snowflake]
+  end
+
+  U1 --> A1 --> PII
+  PII -->|clean text| A2 -->|typed docs| RAG
+  U2 --> A3 --> RAG
+  RAG -->|top passages + citations| A3
+  A3 --> PG
+  A4 --> M1
+  M1 -->|score + SHAP| A4
+  A5 --> FS
+  A6 --> GW
+  A6 --> SF
+
+  RAG --- M2
+  RAG --- M3
+  R2 --- V
+  A4 --- PG
+  A5 --- PG
+
 ```
 ###  Core System Integrations (stubs)
 
