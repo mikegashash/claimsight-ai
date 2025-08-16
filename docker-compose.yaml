@@ -5,22 +5,32 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - .:/app
+      - .:/workspace
+    working_dir: /workspace
     depends_on:
       - postgres
       - chroma
-
+    environment:
+      SNOWFLAKE_USER: "${SNOWFLAKE_USER}"
+      SNOWFLAKE_PASSWORD: "${SNOWFLAKE_PASSWORD}"
+      SNOWFLAKE_ACCOUNT: "${SNOWFLAKE_ACCOUNT}"
+      SNOWFLAKE_WAREHOUSE: "${SNOWFLAKE_WAREHOUSE}"
+      SNOWFLAKE_DATABASE: "${SNOWFLAKE_DATABASE}"
+      SNOWFLAKE_SCHEMA: "${SNOWFLAKE_SCHEMA}"
+      SNOWFLAKE_ROLE: "${SNOWFLAKE_ROLE}"
+      
   ui:
     build: ./ui
     ports:
       - "8501:8501"
     volumes:
-      - .:/app
+      - .:/workspace
+    working_dir: /workspace
     environment:
       API_URL: "http://api:8000"
     depends_on:
       - api
-
+      
   postgres:
     image: postgres:14
     environment:
@@ -29,16 +39,16 @@ services:
       POSTGRES_DB: claimsdb
     ports:
       - "5432:5432"
-
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      
   chroma:
     image: chromadb/chroma
     ports:
       - "8001:8001"
-environment:
-  SNOWFLAKE_USER: "${SNOWFLAKE_USER}"
-  SNOWFLAKE_PASSWORD: "${SNOWFLAKE_PASSWORD}"
-  SNOWFLAKE_ACCOUNT: "${SNOWFLAKE_ACCOUNT}"
-  SNOWFLAKE_WAREHOUSE: "${SNOWFLAKE_WAREHOUSE}"
-  SNOWFLAKE_DATABASE: "${SNOWFLAKE_DATABASE}"
-  SNOWFLAKE_SCHEMA: "${SNOWFLAKE_SCHEMA}"
-  SNOWFLAKE_ROLE: "${SNOWFLAKE_ROLE}"
+    volumes:
+      - chroma_data:/chroma/chroma
+
+volumes:
+  postgres_data:
+  chroma_data:
