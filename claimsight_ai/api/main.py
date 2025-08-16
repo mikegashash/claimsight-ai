@@ -339,3 +339,7 @@ from fastapi.responses import RedirectResponse
 @app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse(url=app.docs_url or "/docs")
+
+@app.get("/healthz", include_in_schema=False)
+def healthz():
+    return {"ok": True}
