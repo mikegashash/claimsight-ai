@@ -1,26 +1,31 @@
-version: '3.9'
 services:
   api:
-    build: ./services/api
+    image: claimsight-ai-api:latest
+    build:
+      context: .                         # build from repo root
+      dockerfile: claimsight_ai/api/Dockerfile
+    command: ["uvicorn", "claimsight_ai.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
     ports:
       - "8000:8000"
     volumes:
       - .:/workspace
     working_dir: /workspace
-    depends_on:
-      - postgres
-      - chroma
+    env_file: .env                       # optional, if you keep SNOWFLAKE creds here
     environment:
-      SNOWFLAKE_USER: "${SNOWFLAKE_USER}"
-      SNOWFLAKE_PASSWORD: "${SNOWFLAKE_PASSWORD}"
-      SNOWFLAKE_ACCOUNT: "${SNOWFLAKE_ACCOUNT}"
-      SNOWFLAKE_WAREHOUSE: "${SNOWFLAKE_WAREHOUSE}"
-      SNOWFLAKE_DATABASE: "${SNOWFLAKE_DATABASE}"
-      SNOWFLAKE_SCHEMA: "${SNOWFLAKE_SCHEMA}"
-      SNOWFLAKE_ROLE: "${SNOWFLAKE_ROLE}"
-      
+      # fallbacks so compose doesn’t spam warnings if vars aren’t set
+      SNOWFLAKE_USER:       "${SNOWFLAKE_USER:-}"
+      SNOWFLAKE_PASSWORD:   "${SNOWFLAKE_PASSWORD:-}"
+      SNOWFLAKE_ACCOUNT:    "${SNOWFLAKE_ACCOUNT:-}"
+      SNOWFLAKE_WAREHOUSE:  "${SNOWFLAKE_WAREHOUSE:-}"
+      SNOWFLAKE_DATABASE:   "${SNOWFLAKE_DATABASE:-}"
+      SNOWFLAKE_SCHEMA:     "${SNOWFLAKE_SCHEMA:-}"
+      SNOWFLAKE_ROLE:       "${SNOWFLAKE_ROLE:-}"
+
   ui:
-    build: ./ui
+    build:
+      context: .
+      dockerfile: ui/Dockerfile          # keep as-is if your UI Dockerfile is here
+    image: claimsight-ai-ui:latest
     ports:
       - "8501:8501"
     volumes:
@@ -30,7 +35,7 @@ services:
       API_URL: "http://api:8000"
     depends_on:
       - api
-      
+
   postgres:
     image: postgres:14
     environment:
@@ -41,7 +46,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      
+
   chroma:
     image: chromadb/chroma
     ports:
