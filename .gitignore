@@ -3,3 +3,8 @@ __pycache__/
 *.pyo
 *.egg-info/
 .pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
