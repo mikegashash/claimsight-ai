@@ -18,13 +18,12 @@
 
 > Privacy-first: synthetic sample data included; PII masking is built-in.
 
-## Developer Experience (Makefile)
-
-- **make up       # build, seed data, start stack
-- **make test     # run pytest inside API container
-- **make train    # train toy XGBoost model via admin API
-- **make logs     # tail logs
-- **make down     # stop stack
+### Developer Experience (Makefile)
+- `make up` — build images, start stack, wait for the API
+- `make test` — run pytest inside the API container
+- `make train` — train the toy XGBoost model via the admin API
+- `make logs` — tail API logs
+- `make down` — stop and remove the stack
 
 
 ## Architecture
