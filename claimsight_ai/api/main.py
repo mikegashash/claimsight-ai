@@ -332,3 +332,10 @@ def dc_policy(policy_id: str):
 @app.get("/adapters/duckcreek/policy/{policy_id}/endorsements")
 def dc_endorsements(policy_id: str):
     return pas_list_endorsements(policy_id)
+
+# claimsight_ai/api/main.py
+from fastapi.responses import RedirectResponse
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url=app.docs_url or "/docs")
