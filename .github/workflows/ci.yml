@@ -19,8 +19,8 @@ jobs:
       DATA_DIR:  ${{ github.workspace }}/data
       MODELS_DIR: ${{ github.workspace }}/models
       VECTOR_DIR: ${{ github.workspace }}/.cache/vectorstore
-      PYTHONPATH: ${{ github.workspace }}        # put repo root on sys.path
-      EN_MODEL: en_core_web_sm                    # light spacy model
+      PYTHONPATH: ${{ github.workspace }}
+      EN_MODEL: en_core_web_sm
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
     steps:
@@ -35,11 +35,12 @@ jobs:
         run: |
           mkdir -p "$VECTOR_DIR" "$DATA_DIR" "$MODELS_DIR"
 
-      - name: Install project (editable) + API deps
+      - name: Install project (editable) + API deps + pytest
         run: |
           python -m pip install --upgrade pip
           pip install -e .
           pip install -r claimsight_ai/api/requirements.txt
+          pip install pytest pytest-cov
 
       - name: Sanity import (print sys.path)
         run: |
@@ -53,4 +54,4 @@ jobs:
           PY
 
       - name: Run tests
-        run: pytest -vv -p no:cacheprovider
+        run: python -m pytest -vv -p no:cacheprovider
