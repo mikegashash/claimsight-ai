@@ -1,0 +1,19 @@
+{
+  "name": "ClaimSight AI",
+  "dockerComposeFile": "../docker-compose.yaml",
+  "service": "api",
+  "workspaceFolder": "/workspace",
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": {
+      "label": "ClaimSight AI API",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "postCreateCommand": "pip install -e .",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python"]
+    }
+  }
+}
