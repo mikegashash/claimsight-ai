@@ -1,9 +1,11 @@
+version: "3.9"
+
 services:
   api:
     image: claimsight-ai-api:latest
     build:
-      context: .                                  # repo root
-      dockerfile: claimsight_ai/api/Dockerfile    # adjust if yours lives elsewhere
+      context: .
+      dockerfile: claimsight_ai/api/Dockerfile
     command: >
       uvicorn claimsight_ai.api.main:app
       --host 0.0.0.0 --port 8000
@@ -14,9 +16,8 @@ services:
     volumes:
       - .:/workspace
     working_dir: /workspace
-    env_file: .env                                # ok if missing; see fallbacks below
+    env_file: .env
     environment:
-      # avoid noisy warnings if env file/vars aren’t set
       SNOWFLAKE_USER:       "${SNOWFLAKE_USER:-}"
       SNOWFLAKE_PASSWORD:   "${SNOWFLAKE_PASSWORD:-}"
       SNOWFLAKE_ACCOUNT:    "${SNOWFLAKE_ACCOUNT:-}"
@@ -24,11 +25,9 @@ services:
       SNOWFLAKE_DATABASE:   "${SNOWFLAKE_DATABASE:-}"
       SNOWFLAKE_SCHEMA:     "${SNOWFLAKE_SCHEMA:-}"
       SNOWFLAKE_ROLE:       "${SNOWFLAKE_ROLE:-}"
-      # make docs render at "/" in Codespaces
       DOCS_AT_ROOT: "1"
-      FORWARDED_ALLOW_IPS: "*"                    # play nice with the proxy
+      FORWARDED_ALLOW_IPS: "*"
     healthcheck:
-      # no curl/wget required; use Python in the image
       test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys\ntry:\n  urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5)\n  sys.exit(0)\nexcept Exception:\n  sys.exit(1)\nPY"]
       interval: 5s
       timeout: 5s
@@ -37,10 +36,10 @@ services:
     restart: unless-stopped
 
   ui:
+    image: claimsight-ai-ui:latest
     build:
       context: .
       dockerfile: ui/Dockerfile
-    image: claimsight-ai-ui:latest
     ports:
       - "8501:8501"
     volumes:
@@ -67,9 +66,8 @@ services:
 
   chroma:
     image: chromadb/chroma
-    # the container listens on 8000; map it to host 8001
     ports:
-      - "8001:8000"
+      - "8001:8000"           # host:container
     volumes:
       - chroma_data:/chroma/chroma
     restart: unless-stopped
