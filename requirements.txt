@@ -1,35 +1,36 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-# Core
+# --- Core API ---
 fastapi==0.111.0
 uvicorn[standard]==0.30.1
 
-# Data & ML
+# --- Storage / DB ---
+SQLAlchemy==2.0.31
+psycopg[binary]==3.1.19         # Postgres driver for postgresql+psycopg URLs
+snowflake-connector-python==3.10.1
+snowflake-sqlalchemy==1.6.1
+
+# --- Data & ML ---
+numpy==1.26.4                   # stable on Py3.11 and ML wheels
 pandas==2.2.2
-numpy==1.26.4 # Updated to avoid compatibility issues with Python 3.12
+scikit-learn==1.5.1
 xgboost==2.1.0
 shap==0.45.1
-scikit-learn==1.5.1
+torch==2.3.1                    # resolved via CPU wheel index above
 
-# RAG / NLP
+# --- RAG / NLP ---
 sentence-transformers==2.7.0
 transformers==4.41.2
-faiss-cpu==1.8.0.post1    # <- works in Codespaces
+faiss-cpu==1.8.0.post1
 rank-bm25==0.2.2
-torch==2.3.1          # optional; install with +cpu index below
 
-# OCR / PII
+# --- OCR / PII ---
 presidio-analyzer==2.2.359
 presidio-anonymizer==2.2.359
 pytesseract==0.3.10
 Pillow==10.3.0
 
-# Snowflake (gracefully skipped if not configured)
-snowflake-connector-python==3.10.1
-snowflake-sqlalchemy==1.6.1
-SQLAlchemy==2.0.31
-
-# HTTP / uploads / PDF
+# --- HTTP / uploads / PDF ---
 requests==2.32.3
 python-multipart==0.0.9
 reportlab==4.2.2
