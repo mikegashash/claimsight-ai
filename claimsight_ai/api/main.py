@@ -47,13 +47,39 @@ except Exception:
         metadata: Optional[Dict] = None
 
 # ---------- Local services (relative imports; no PYTHONPATH issues) ----------
-from ..rag.index_policies import build_index
-from ..rag.retriever import PolicyRetriever
-from ..rag.reranker import rerank
+# TEMPORARILY COMMENTED OUT FOR DEBUGGING
+# from ..rag.index_policies import build_index
+# from ..rag.retriever import PolicyRetriever
+# from ..rag.reranker import rerank
 
-from ..ocr.pii import mask_pii
-from ..snowflake_io import df_to_snowflake, snowflake_query
-from ..report import build_claim_packet_pdf
+# from ..ocr.pii import mask_pii
+# from ..snowflake_io import df_to_snowflake, snowflake_query
+# from ..report import build_claim_packet_pdf
+
+# Create stub functions for now
+def build_index():
+    return {"status": "stub"}
+
+class PolicyRetriever:
+    def __init__(self, k=5):
+        self.k = k
+    def search(self, query, where=None):
+        return []
+
+def rerank(query, hits, top_n=5):
+    return hits[:top_n]
+
+def mask_pii(text):
+    return text
+
+def df_to_snowflake(df, table):
+    return {"status": "stub"}
+
+def snowflake_query(query):
+    return pd.DataFrame()
+
+def build_claim_packet_pdf(claim, cov, risk):
+    return b"PDF stub"
 
 # ---------- Integrations (guarded; provide stubs if import fails) ----------
 try:
@@ -122,27 +148,37 @@ def fetch_endorsements(policy_id: str) -> list[dict]:
 # ========= Startup =========
 @app.on_event("startup")
 def startup():
-    """Build vector index (idempotent) and load risk model (if present)."""
+    """SIMPLIFIED STARTUP FOR DEBUGGING"""
     global RETRIEVER, MODEL, EXPLAINER
+    
+    print("=== API STARTUP BEGINNING ===")
+    print(f"APP_HOME: {APP_HOME}")
+    print(f"DATA_DIR: {DATA_DIR}")
+    print(f"MODELS_DIR: {MODELS_DIR}")
+    print(f"IS_CODESPACES: {IS_CODESPACES}")
+    print(f"DOCS_AT_ROOT: {DOCS_AT_ROOT}")
+    
+    # Temporarily comment out everything complex
+    # try:
+    #     out = build_index()
+    #     print("Policy index build:", out)
+    # except Exception as e:
+    #     print("Index build error (continuing):", e)
 
-    try:
-        out = build_index()
-        print("Policy index build:", out)
-    except Exception as e:
-        print("Index build error (continuing):", e)
+    # RETRIEVER = PolicyRetriever(k=5)
 
-    RETRIEVER = PolicyRetriever(k=5)
-
-    model_path = MODELS_DIR / "risk_xgb.json"
-    if model_path.exists():
-        mdl = xgb.XGBClassifier()
-        mdl.load_model(str(model_path))
-        MODEL = mdl
-        bg = pd.DataFrame([[1000, 0, 0, 1, 0, 0]], columns=FEATURES)
-        EXPLAINER = shap.TreeExplainer(MODEL, bg)
-        print("Loaded XGB risk model.")
-    else:
-        print("Risk model not found. Train via POST /admin/train_risk")
+    # model_path = MODELS_DIR / "risk_xgb.json"
+    # if model_path.exists():
+    #     mdl = xgb.XGBClassifier()
+    #     mdl.load_model(str(model_path))
+    #     MODEL = mdl
+    #     bg = pd.DataFrame([[1000, 0, 0, 1, 0, 0]], columns=FEATURES)
+    #     EXPLAINER = shap.TreeExplainer(MODEL, bg)
+    #     print("Loaded XGB risk model.")
+    # else:
+    #     print("Risk model not found. Train via POST /admin/train_risk")
+    
+    print("=== API STARTUP COMPLETE - BASIC MODE ===")
 
 # ========= Health =========
 @app.get("/healthz")
