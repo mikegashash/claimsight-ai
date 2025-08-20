@@ -6,11 +6,28 @@ services:
     build:
       context: .
       dockerfile: claimsight_ai/api/Dockerfile
-    command: >
-      bash -lc "python -V &&
-                python - <<'PY'\nimport sys,os;print('PYTHONPATH=',os.getenv('PYTHONPATH'))\nPY &&
-                uvicorn claimsight_ai.api.main:app --host 0.0.0.0 --port 8000 --log-level debug --proxy-headers"
-
+    # Preflight imports + clear traceback, then start uvicorn
+    command:
+      - bash
+      - -lc
+      - |
+        set -euo pipefail
+        echo "Python: $(python -V)"
+        python - <<'PY'
+        import os,sys,traceback
+        print("PYTHONPATH=", os.getenv("PYTHONPATH"))
+        for m in ["numpy","torch","fastapi","sqlalchemy","psycopg"]:
+            try:
+                __import__(m); print("OK import", m)
+            except Exception as e:
+                print("FAIL import", m, "->", e); sys.exit(12)
+        try:
+            from claimsight_ai.api.main import app
+            print("app import OK")
+        except Exception:
+            traceback.print_exc(); sys.exit(13)
+        PY
+        uvicorn claimsight_ai.api.main:app --host 0.0.0.0 --port 8000 --log-level debug --proxy-headers
     ports:
       - "8000:8000"
     volumes:
@@ -32,11 +49,24 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys\nfor path in ('/healthz','/health'):\n  try:\n    urllib.request.urlopen('http://127.0.0.1:8000'+path, timeout=3)\n    sys.exit(0)\n  except Exception:\n    pass\nsys.exit(1)\nPY"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
+      test:
+        - bash
+        - -lc
+        - |
+          python - <<'PY'
+          import urllib.request,sys
+          for path in ("/healthz","/health"):
+              try:
+                  urllib.request.urlopen("http://127.0.0.1:8000"+path, timeout=2)
+                  sys.exit(0)
+              except Exception:
+                  pass
+          sys.exit(1)
+          PY
+      interval: 3s
+      timeout: 3s
+      retries: 5         # fast-fail
+      start_period: 15s
     restart: unless-stopped
 
   ui:
