@@ -9,6 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      # Ensure torch CPU wheels are available if bootstrap installs Python deps
+      PIP_EXTRA_INDEX_URL: https://download.pytorch.org/whl/cpu
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -16,13 +21,16 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: System deps (if bootstrap installs xgboost, etc.)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgomp1
 
       - name: Make bootstrap executable
         run: chmod +x bootstrap.sh
 
       - name: Run bootstrap in CI mode
-        env:
-          # Prevent interactive installs
-          PIP_DISABLE_PIP_VERSION_CHECK: "1"
         run: ./bootstrap.sh --ci
