@@ -16,7 +16,7 @@ sentence-transformers==2.7.0
 transformers==4.41.2
 faiss-cpu==1.8.0.post1    # <- works in Codespaces
 rank-bm25==0.2.2
-torch==2.3.1+cpu          # optional; install with CPU index below
+torch==2.3.1          # optional; install with +cpu index below
 
 # OCR / PII
 presidio-analyzer==2.2.359
