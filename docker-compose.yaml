@@ -35,8 +35,8 @@ services:
       test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys\nfor path in ('/healthz','/health'):\n  try:\n    urllib.request.urlopen('http://127.0.0.1:8000'+path, timeout=3)\n    sys.exit(0)\n  except Exception:\n    pass\nsys.exit(1)\nPY"]
       interval: 5s
       timeout: 5s
-      retries: 20
-      start_period: 30s
+      retries: 10
+      start_period: 20s
     restart: unless-stopped
 
   ui:
