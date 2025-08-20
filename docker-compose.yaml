@@ -7,10 +7,10 @@ services:
       context: .
       dockerfile: claimsight_ai/api/Dockerfile
     command: >
-      uvicorn claimsight_ai.api.main:app
-      --host 0.0.0.0 --port 8000
-      --log-level info
-      --proxy-headers
+      bash -lc "python -V &&
+                python - <<'PY'\nimport sys,os;print('PYTHONPATH=',os.getenv('PYTHONPATH'))\nPY &&
+                uvicorn claimsight_ai.api.main:app --host 0.0.0.0 --port 8000 --log-level debug --proxy-headers"
+
     ports:
       - "8000:8000"
     volumes:
