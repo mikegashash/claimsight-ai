@@ -11,7 +11,7 @@ jobs:
       contents: read
     env:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
-      # Ensure torch CPU wheels are available if bootstrap installs Python deps
+      # Make torch install reliable on CPU-only runners
       PIP_EXTRA_INDEX_URL: https://download.pytorch.org/whl/cpu
 
     steps:
@@ -24,13 +24,33 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: System deps (if bootstrap installs xgboost, etc.)
+      - name: System deps (xgboost/OpenMP etc.)
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libgomp1
 
+      - name: Diag — Python & pip
+        run: |
+          python -V
+          python -c "import sys; print('sys.platform=', sys.platform); print('PY=', sys.version)"
+          python -m pip --version
+          python -m pip config list || true
+          env | sort | sed -n '1,80p'
+
+      - name: Normalize bootstrap.sh line endings (fix ^M)
+        if: ${{ hashFiles('bootstrap.sh') != '' }}
+        run: |
+          sed -i 's/\r$//' bootstrap.sh
+
       - name: Make bootstrap executable
+        if: ${{ hashFiles('bootstrap.sh') != '' }}
         run: chmod +x bootstrap.sh
 
-      - name: Run bootstrap in CI mode
-        run: ./bootstrap.sh --ci
+      - name: Run bootstrap in CI mode (verbose)
+        if: ${{ hashFiles('bootstrap.sh') != '' }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+          # If your script expects CI flag/env, we provide both:
+          export CI=1
+          ./bootstrap.sh --ci
