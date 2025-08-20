@@ -1,15 +1,19 @@
 {
   "name": "ClaimSight AI",
-  "dockerComposeFile": "../docker-compose.yaml",
-  "service": "api",                      // must match a service name in docker-compose.yaml
+  "dockerComposeFile": ["../docker-compose.yaml"],
+  "service": "api",                                  // must match compose
+  "runServices": ["api", "ui", "postgres", "chroma"],// ensure all services start
+  "overrideCommand": false,                          // let compose command run
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-  "forwardPorts": [8000],
+
+  "forwardPorts": [8000, 8501, 8001, 5432],
   "portsAttributes": {
-    "8000": {
-      "label": "ClaimSight AI API",
-      "onAutoForward": "openBrowser"
-    }
+    "8000": { "label": "ClaimSight API", "onAutoForward": "openBrowser" },
+    "8501": { "label": "UI (Streamlit)" },
+    "8001": { "label": "ChromaDB" },
+    "5432": { "label": "Postgres" }
   },
+
   "postCreateCommand": "pip install -e .",
   "customizations": {
     "vscode": {
