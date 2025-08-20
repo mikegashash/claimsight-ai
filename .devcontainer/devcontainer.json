@@ -1,8 +1,8 @@
 {
   "name": "ClaimSight AI",
   "dockerComposeFile": "../docker-compose.yaml",
-  "service": "api",
-  "workspaceFolder": "/workspace",
+  "service": "api",                      // must match a service name in docker-compose.yaml
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "forwardPorts": [8000],
   "portsAttributes": {
     "8000": {
