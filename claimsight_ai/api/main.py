@@ -133,18 +133,23 @@ app = FastAPI(
     root_path=ROOT_PATH,
 )
 
-# ---- FRAUD ROUTER (robust import + explicit logging) ----
+# ---- FRAUD ROUTER (robust import + path shim + explicit logging) ----
 import sys, logging
+from pathlib import Path
 logger = logging.getLogger("uvicorn.error")
+
+# ensure repo root (parent of `claimsight_ai/`) is importable so `app.*` works
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 fraud_router = None
 fraud_import_err = None
-for path in ("app.extensions.fraud.router",
-             "claimsight_ai.extensions.fraud.router"):
+for modpath in ("app.extensions.fraud.router", "claimsight_ai.extensions.fraud.router"):
     try:
-        mod = __import__(path, fromlist=["router"])
+        mod = __import__(modpath, fromlist=["router"])
         fraud_router = getattr(mod, "router")
-        logger.info(f"[fraud] imported router from {path}")
+        logger.info(f"[fraud] imported router from {modpath}")
         break
     except Exception as e:
         fraud_import_err = e
@@ -152,8 +157,7 @@ for path in ("app.extensions.fraud.router",
 if fraud_router is None:
     raise RuntimeError(
         f"Could not import fraud router: {fraud_import_err}. "
-        "Ensure the package path matches your layout and "
-        "`__init__.py` exists in app/, app/extensions/, app/extensions/fraud/."
+        "Confirm __init__.py exists in app/, app/extensions/, app/extensions/fraud/."
     )
 
 app.include_router(fraud_router)
@@ -163,7 +167,8 @@ try:
     logger.info(f"[fraud] registered routes: {fraud_paths}")
 except Exception:
     pass
-# ---------------------------------------------------------
+# ---------------------------------------------------------------------
+
 
 
 # ========= Globals =========
