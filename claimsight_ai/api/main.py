@@ -11,7 +11,7 @@ import xgboost as xgb
 import shap
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import RedirectResponse
-from app.extensions.fraud.router import router as fraud_router
+from claimsight_ai.extensions.fraud.router import router as fraud_router
 # ---------- ENV / Paths ----------
 APP_HOME = Path(os.environ.get("APP_HOME", Path.cwd()))
 DATA_DIR = Path(os.environ.get("DATA_DIR", APP_HOME / "data"))
