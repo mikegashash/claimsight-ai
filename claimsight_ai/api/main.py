@@ -11,7 +11,7 @@ import xgboost as xgb
 import shap
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import RedirectResponse
-
+from claimsight_ai.extensions.fraud.router import router as fraud_router
 # ---------- ENV / Paths ----------
 APP_HOME = Path(os.environ.get("APP_HOME", Path.cwd()))
 DATA_DIR = Path(os.environ.get("DATA_DIR", APP_HOME / "data"))
@@ -390,3 +390,6 @@ def dc_policy(policy_id: str):
 @app.get("/adapters/duckcreek/policy/{policy_id}/endorsements")
 def dc_endorsements(policy_id: str):
     return pas_list_endorsements(policy_id)
+
+# after you create `app = FastAPI(...)`
+app.include_router(fraud_router)
