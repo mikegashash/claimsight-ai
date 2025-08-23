@@ -17,6 +17,7 @@ scikit-learn==1.5.1
 xgboost==2.1.0
 shap==0.45.1
 torch==2.3.1                    # resolved via CPU wheel index above
+click>=9.0
 
 # --- RAG / NLP ---
 sentence-transformers==2.7.0
