@@ -125,6 +125,18 @@ app = FastAPI(
     root_path=ROOT_PATH,
 )
 
+# in claimsight_ai/api/main.py (right after app = FastAPI(...))
+from app.extensions.fraud.router import router as fraud_router
+
+def _has_fraud_routes(a):
+    for r in a.routes:
+        p = getattr(r, "path", "")
+        if p.startswith("/fraud/"):
+            return True
+    return False
+
+if not _has_fraud_routes(app):
+    app.include_router(fraud_router)
 
 
 # ---- FRAUD ROUTER: load from file first, then fall back to package import ----
