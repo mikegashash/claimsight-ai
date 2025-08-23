@@ -3,6 +3,41 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 import yaml
+# add near the existing imports
+from typing import Any
+from pydantic import BaseModel, field_validator
+
+class SimpleClaim(BaseModel):
+    claim_id: str
+    line_of_business: str = "Auto"
+    late_report_days: int = 0
+    claim_amount: float = 0.0
+    paid_to_date: float = 0.0
+    reserve: float = 0.0
+    claimant_age: int = 40
+    injury_severity: int = 0
+    police_report: int | bool = 0
+    prior_claims_count: int = 0
+    repair_shop_id: str | None = None
+    provider_id: str | None = None
+
+    # make booleans or "true"/"false" work for police_report
+    @field_validator("police_report", mode="before")
+    @classmethod
+    def coerce_police(cls, v: Any) -> int:
+        if isinstance(v, bool): return int(v)
+        if isinstance(v, (int, float)): return int(v)
+        if isinstance(v, str): return 1 if v.strip().lower() in {"1","true","yes","y"} else 0
+        return 0
+
+@router.post("/score_simple")
+def score_simple(payload: SimpleClaim):
+    """
+    Friendlier scoring: fills defaults & coerces types, then reuses the same logic.
+    """
+    # convert to the strict Claim used by /score
+    strict = Claim(**payload.model_dump())
+    return score_one(strict)
 
 from .scoring_rules import score_rules
 from .features import enrich
