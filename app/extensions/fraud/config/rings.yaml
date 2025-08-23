@@ -1,0 +1,8 @@
+ring_providers:
+  - PR0003
+  - PR0011
+  - PR0077
+ring_shops:
+  - RS0005
+  - RS0022
+  - RS0199
