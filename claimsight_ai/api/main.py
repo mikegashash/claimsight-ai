@@ -125,13 +125,10 @@ app = FastAPI(
     root_path=ROOT_PATH,
 )
 
-app = FastAPI(
-    title="ClaimSight AI API",
-    version="0.1.0",
-    docs_url="/" if DOCS_AT_ROOT else "/docs",
-    openapi_url="/openapi.json",
-    root_path=ROOT_PATH,
-)
+@app.get("/_debug/routes", include_in_schema=False)
+def _debug_routes():
+    return [r.path for r in app.routes]
+
 
 # ---- FRAUD ROUTER (robust import + path shim + explicit logging) ----
 import sys, logging
