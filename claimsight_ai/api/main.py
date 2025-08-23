@@ -125,46 +125,70 @@ app = FastAPI(
     root_path=ROOT_PATH,
 )
 
-@app.get("/_debug/routes", include_in_schema=False)
-def _debug_routes():
-    return [r.path for r in app.routes]
 
 
-# ---- FRAUD ROUTER (robust import + path shim + explicit logging) ----
-import sys, logging
-from pathlib import Path
+# ---- FRAUD ROUTER: load from file first, then fall back to package import ----
+import sys, logging, importlib.util
+from pathlib import Path as _P
 logger = logging.getLogger("uvicorn.error")
 
-# ensure repo root (parent of `claimsight_ai/`) is importable so `app.*` works
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
+# 1) Try to import router.py directly from disk (no package path needed)
+_REPO_ROOT = _P(__file__).resolve().parents[2]
+candidates = [
+    _REPO_ROOT / "app" / "extensions" / "fraud" / "router.py",
+    _REPO_ROOT / "claimsight_ai" / "extensions" / "fraud" / "router.py",
+]
 
 fraud_router = None
-fraud_import_err = None
-for modpath in ("app.extensions.fraud.router", "claimsight_ai.extensions.fraud.router"):
-    try:
-        mod = __import__(modpath, fromlist=["router"])
-        fraud_router = getattr(mod, "router")
-        logger.info(f"[fraud] imported router from {modpath}")
-        break
-    except Exception as e:
-        fraud_import_err = e
+load_err = None
+for p in candidates:
+    if p.exists():
+        try:
+            spec = importlib.util.spec_from_file_location("fraud_router_mod", str(p))
+            mod = importlib.util.module_from_spec(spec)  # type: ignore
+            assert spec and spec.loader
+            spec.loader.exec_module(mod)  # type: ignore
+            fraud_router = getattr(mod, "router")
+            logger.info(f"[fraud] loaded router from file: {p}")
+            break
+        except Exception as e:
+            load_err = e
+
+# 2) If file-based load failed, fall back to normal package import
+if fraud_router is None:
+    # ensure repo root is on path just in case
+    if str(_REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(_REPO_ROOT))
+    for modpath in ("app.extensions.fraud.router", "claimsight_ai.extensions.fraud.router"):
+        try:
+            mod = __import__(modpath, fromlist=["router"])
+            fraud_router = getattr(mod, "router")
+            logger.info(f"[fraud] imported router from package: {modpath}")
+            break
+        except Exception as e:
+            load_err = e
 
 if fraud_router is None:
     raise RuntimeError(
-        f"Could not import fraud router: {fraud_import_err}. "
-        "Confirm __init__.py exists in app/, app/extensions/, app/extensions/fraud/."
+        f"Could not load fraud router. Last error: {load_err}. "
+        f"Tried files: {candidates} and package paths: "
+        f"'app.extensions.fraud.router', 'claimsight_ai.extensions.fraud.router'."
     )
 
 app.include_router(fraud_router)
 
+# Optional tiny debug route to list mounted paths
+@app.get("/_debug/routes", include_in_schema=False)
+def _debug_routes():
+    return [r.path for r in app.routes]
+
+# Log what registered
 try:
-    fraud_paths = [r.path for r in app.routes if "fraud" in r.path]
-    logger.info(f"[fraud] registered routes: {fraud_paths}")
+    logger.info(f"[fraud] registered: {[r.path for r in app.routes if 'fraud' in r.path]}")
 except Exception:
     pass
-# ---------------------------------------------------------------------
+# -------------------------------------------------------------------------------
+
 
 
 
