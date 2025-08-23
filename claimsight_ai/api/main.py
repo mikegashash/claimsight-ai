@@ -125,6 +125,47 @@ app = FastAPI(
     root_path=ROOT_PATH,
 )
 
+app = FastAPI(
+    title="ClaimSight AI API",
+    version="0.1.0",
+    docs_url="/" if DOCS_AT_ROOT else "/docs",
+    openapi_url="/openapi.json",
+    root_path=ROOT_PATH,
+)
+
+# ---- FRAUD ROUTER (robust import + explicit logging) ----
+import sys, logging
+logger = logging.getLogger("uvicorn.error")
+
+fraud_router = None
+fraud_import_err = None
+for path in ("app.extensions.fraud.router",
+             "claimsight_ai.extensions.fraud.router"):
+    try:
+        mod = __import__(path, fromlist=["router"])
+        fraud_router = getattr(mod, "router")
+        logger.info(f"[fraud] imported router from {path}")
+        break
+    except Exception as e:
+        fraud_import_err = e
+
+if fraud_router is None:
+    raise RuntimeError(
+        f"Could not import fraud router: {fraud_import_err}. "
+        "Ensure the package path matches your layout and "
+        "`__init__.py` exists in app/, app/extensions/, app/extensions/fraud/."
+    )
+
+app.include_router(fraud_router)
+
+try:
+    fraud_paths = [r.path for r in app.routes if "fraud" in r.path]
+    logger.info(f"[fraud] registered routes: {fraud_paths}")
+except Exception:
+    pass
+# ---------------------------------------------------------
+
+
 # ========= Globals =========
 RETRIEVER: PolicyRetriever | None = None
 MODEL: xgb.XGBClassifier | None = None
