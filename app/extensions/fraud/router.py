@@ -104,3 +104,55 @@ def score_bulk(payload: List[Claim]):
     if ENGINE == "ml":
         return [score_ml(p.dict()) for p in payload]
     return [score_rules(p.dict(), RINGS) for p in payload]
+# ---- Model / Training helpers (read state from API module) ----
+try:
+    # we import the api module to peek at global MODEL / EXPLAINER the service owns
+    from claimsight_ai.api import main as api_main
+except Exception:
+    api_main = None
+
+# try to import the training function already defined in api.main
+try:
+    from claimsight_ai.api.main import train_risk_model as _train_risk_inproc
+except Exception:
+    _train_risk_inproc = None
+
+@router.get("/model_status")
+def fraud_model_status():
+    loaded = bool(getattr(api_main, "MODEL", None)) if api_main else False
+    explainer = bool(getattr(api_main, "EXPLAINER", None)) if api_main else False
+    engine = "model" if loaded else "rules"
+    return {
+        "engine": engine,
+        "model_loaded": loaded,
+        "explainer_loaded": explainer,
+        "features": getattr(api_main, "FEATURES", []),
+        "models_dir": str(getattr(api_main, "MODELS_DIR", Path("models")).resolve()),
+        "data_dir": str(getattr(api_main, "DATA_DIR", Path("data")).resolve()),
+    }
+
+@router.post("/admin/upload_csv")
+async def admin_upload_csv(file: UploadFile = File(...)):
+    """Upload a training CSV (writes to DATA_DIR/claims.csv)."""
+    if file.filename and not file.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Please upload a .csv")
+    data_dir = getattr(api_main, "DATA_DIR", Path(os.environ.get("DATA_DIR", "data")))
+    data_dir = Path(data_dir)
+    data_dir.mkdir(parents=True, exist_ok=True)
+    target = data_dir / "claims.csv"
+    content = await file.read()
+    target.write_bytes(content)
+    # tiny sanity check: count lines
+    line_count = content.count(b"\n") + (1 if content and not content.endswith(b"\n") else 0)
+    return {"ok": True, "path": str(target.resolve()), "approx_rows": max(0, line_count - 1)}
+
+@router.post("/admin/train")
+def admin_train_now():
+    """Trigger in-process training using the API's built-in function."""
+    if _train_risk_inproc is None:
+        raise HTTPException(status_code=500, detail="Training function not available in-process.")
+    try:
+        out = _train_risk_inproc()
+        return {"ok": True, "result": out}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Training failed: {e!s}") from e
