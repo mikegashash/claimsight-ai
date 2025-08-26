@@ -16,10 +16,6 @@ import xgboost as xgb
 import shap
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import RedirectResponse
-try:
-    from app.extensions.fraud.router import router as fraud_router
-except ModuleNotFoundError:
-    from claimsight_ai.extensions.fraud.router import router as fraud_router
 
 # ---------- ENV / Paths ----------
 APP_HOME = Path(os.environ.get("APP_HOME", Path.cwd()))
@@ -125,84 +121,22 @@ app = FastAPI(
     root_path=ROOT_PATH,
 )
 
-# in claimsight_ai/api/main.py (right after app = FastAPI(...))
-from app.extensions.fraud.router import router as fraud_router
-
-def _has_fraud_routes(a):
-    for r in a.routes:
-        p = getattr(r, "path", "")
-        if p.startswith("/fraud/"):
-            return True
-    return False
-
-if not _has_fraud_routes(app):
-    app.include_router(fraud_router)
-
-
-# ---- FRAUD ROUTER: load from file first, then fall back to package import ----
-import sys, logging, importlib.util
-from pathlib import Path as _P
-logger = logging.getLogger("uvicorn.error")
-
-# 1) Try to import router.py directly from disk (no package path needed)
-_REPO_ROOT = _P(__file__).resolve().parents[2]
-candidates = [
-    _REPO_ROOT / "app" / "extensions" / "fraud" / "router.py",
-    _REPO_ROOT / "claimsight_ai" / "extensions" / "fraud" / "router.py",
-]
-
-fraud_router = None
-load_err = None
-for p in candidates:
-    if p.exists():
-        try:
-            spec = importlib.util.spec_from_file_location("fraud_router_mod", str(p))
-            mod = importlib.util.module_from_spec(spec)  # type: ignore
-            assert spec and spec.loader
-            spec.loader.exec_module(mod)  # type: ignore
-            fraud_router = getattr(mod, "router")
-            logger.info(f"[fraud] loaded router from file: {p}")
-            break
-        except Exception as e:
-            load_err = e
-
-# 2) If file-based load failed, fall back to normal package import
-if fraud_router is None:
-    # ensure repo root is on path just in case
-    if str(_REPO_ROOT) not in sys.path:
-        sys.path.insert(0, str(_REPO_ROOT))
-    for modpath in ("app.extensions.fraud.router", "claimsight_ai.extensions.fraud.router"):
-        try:
-            mod = __import__(modpath, fromlist=["router"])
-            fraud_router = getattr(mod, "router")
-            logger.info(f"[fraud] imported router from package: {modpath}")
-            break
-        except Exception as e:
-            load_err = e
-
-if fraud_router is None:
-    raise RuntimeError(
-        f"Could not load fraud router. Last error: {load_err}. "
-        f"Tried files: {candidates} and package paths: "
-        f"'app.extensions.fraud.router', 'claimsight_ai.extensions.fraud.router'."
-    )
-
-app.include_router(fraud_router)
-
-# Optional tiny debug route to list mounted paths
-@app.get("/_debug/routes", include_in_schema=False)
-def _debug_routes():
-    return [r.path for r in app.routes]
-
-# Log what registered
+# ---------- Fraud Router (Simplified Loading) ----------
 try:
-    logger.info(f"[fraud] registered: {[r.path for r in app.routes if 'fraud' in r.path]}")
-except Exception:
-    pass
-# -------------------------------------------------------------------------------
-
-
-
+    from app.extensions.fraud.router import router as fraud_router
+    app.include_router(fraud_router)
+    print("[INFO] Fraud detection router loaded successfully")
+except ImportError as e:
+    print(f"[WARNING] Fraud router not loaded: {e}")
+    # Create a minimal stub router for development
+    from fastapi import APIRouter
+    stub_router = APIRouter(prefix="/fraud", tags=["fraud"])
+    
+    @stub_router.get("/health")
+    def fraud_health():
+        return {"status": "stub_mode", "message": "Fraud detection not available"}
+    
+    app.include_router(stub_router)
 
 # ========= Globals =========
 RETRIEVER: PolicyRetriever | None = None
@@ -478,5 +412,3 @@ def dc_policy(policy_id: str):
 @app.get("/adapters/duckcreek/policy/{policy_id}/endorsements")
 def dc_endorsements(policy_id: str):
     return pas_list_endorsements(policy_id)
-
-
