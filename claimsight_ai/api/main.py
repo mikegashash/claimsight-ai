@@ -479,5 +479,4 @@ def dc_policy(policy_id: str):
 def dc_endorsements(policy_id: str):
     return pas_list_endorsements(policy_id)
 
-# after you create `app = FastAPI(...)`
-app.include_router(fraud_router)
+
