@@ -122,15 +122,15 @@ app = FastAPI(
 )
 
 # ---------- Fraud Router (Simplified Loading) ----------
-try:
-    from app.extensions.fraud.router import router as fraud_router
-    app.include_router(fraud_router)
-    print("[INFO] Fraud detection router loaded successfully")
-except ImportError as e:
-    print(f"[WARNING] Fraud router not loaded: {e}")
+#try:
+ #   from app.extensions.fraud.router import router as fraud_router
+  #  app.include_router(fraud_router)
+   # print("[INFO] Fraud detection router loaded successfully")
+#except ImportError as e:
+ #   print(f"[WARNING] Fraud router not loaded: {e}")
     # Create a minimal stub router for development
-    from fastapi import APIRouter
-    stub_router = APIRouter(prefix="/fraud", tags=["fraud"])
+  #  from fastapi import APIRouter
+   # stub_router = APIRouter(prefix="/fraud", tags=["fraud"])
     
     @stub_router.get("/health")
     def fraud_health():
